@@ -209,13 +209,17 @@ function renderSkillsStep() {
         <div class="step-title">Resultado</div>
         <div class="step-sub" id="runStatus"></div>
       </div>
-      <div class="output" id="resultOutput"></div>
-      <div class="actions-row" style="margin-top:14px">
-        <button class="btn" id="copyResultBtn" style="display:none">
+      <div class="actions-row" id="resultActions" style="display:none;margin-bottom:14px">
+        <button class="btn" id="copyResultBtn">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
           Copiar resultado
         </button>
+        <button class="btn" id="downloadPdfBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Descargar PDF
+        </button>
       </div>
+      <div class="output" id="resultOutput"></div>
     </div>`;
 
   document.querySelectorAll('.skill-pick').forEach(el => {
@@ -327,7 +331,7 @@ async function runWithClaude() {
   const output = document.getElementById('resultOutput');
   const status = document.getElementById('runStatus');
   const runBtn = document.getElementById('runBtn');
-  const copyResultBtn = document.getElementById('copyResultBtn');
+  const resultActions = document.getElementById('resultActions');
 
   resultStep.style.display = '';
   resultStep.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -335,7 +339,7 @@ async function runWithClaude() {
   status.textContent = `${cfg.model} · streaming`;
   runBtn.disabled = true;
   runBtn.innerHTML = '<span class="spinner"></span> Ejecutando...';
-  copyResultBtn.style.display = 'none';
+  if (resultActions) resultActions.style.display = 'none';
 
   if (currentRunController) currentRunController.abort();
   currentRunController = new AbortController();
@@ -363,7 +367,7 @@ async function runWithClaude() {
     });
     output.innerHTML = mdToHtml(fullText);
     output.dataset.raw = fullText;
-    copyResultBtn.style.display = '';
+    if (resultActions) resultActions.style.display = 'flex';
     const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
     status.textContent = `✓ ${secs}s · ${cfg.model}`;
     saveToHistory({
@@ -394,7 +398,145 @@ document.addEventListener('click', e => {
     navigator.clipboard.writeText(raw);
     toast('Resultado copiado');
   }
+  if (e.target.closest('#downloadPdfBtn')) {
+    downloadResultAsPdf();
+  }
 });
+
+const PDF_STYLE_ID = '__pdf_export_styles__';
+
+function ensurePdfStyles() {
+  if (document.getElementById(PDF_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = PDF_STYLE_ID;
+  style.textContent = `
+    .pdf-body h1, .pdf-body h2, .pdf-body h3 { color: #0a0a0f; margin: 14px 0 8px; line-height: 1.3; }
+    .pdf-body h1 { font-size: 17px; }
+    .pdf-body h2 { font-size: 14px; color: #6d28d9; }
+    .pdf-body h3 { font-size: 13px; }
+    .pdf-body p { margin: 0 0 9px; color: #27272a; }
+    .pdf-body ul, .pdf-body ol { margin: 6px 0 11px 22px; color: #27272a; padding: 0; }
+    .pdf-body li { margin-bottom: 3px; }
+    .pdf-body strong { color: #0a0a0f; }
+    .pdf-body code { background: #f4f4f5; padding: 1px 5px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #be185d; border: 1px solid #e4e4e7; }
+    .pdf-body pre { background: #f4f4f5; padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid #e4e4e7; overflow: hidden; }
+    .pdf-body pre code { background: none; border: none; padding: 0; color: #18181b; white-space: pre-wrap; }
+    .pdf-body blockquote { border-left: 3px solid #8b5cf6; padding-left: 12px; margin: 10px 0; color: #52525b; font-style: italic; }
+    .pdf-body hr { border: none; border-top: 1px solid #e4e4e7; margin: 14px 0; }
+    .pdf-body table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: 11px; }
+    .pdf-body th, .pdf-body td { border: 1px solid #e4e4e7; padding: 6px 9px; text-align: left; }
+    .pdf-body th { background: #fafafa; font-weight: 600; }
+  `;
+  document.head.appendChild(style);
+}
+
+function buildPdfDocument(taskTitle, resultHtml) {
+  ensurePdfStyles();
+  const date = new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'long', year: 'numeric' });
+  const wrap = document.createElement('div');
+  wrap.style.cssText = [
+    'width: 794px',
+    'box-sizing: border-box',
+    'padding: 36px 40px',
+    'background: #ffffff',
+    'color: #1a1a1f',
+    'font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+    'font-size: 13px',
+    'line-height: 1.55',
+    'display: block',
+  ].join(';');
+  wrap.innerHTML = `
+    <div style="border-bottom: 2px solid #8b5cf6; padding-bottom: 14px; margin-bottom: 22px;">
+      <div style="font-size: 10px; color: #8b5cf6; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;">Marketing Skills · Orquestador</div>
+      <div style="font-size: 18px; font-weight: 700; color: #0a0a0f; line-height: 1.3; margin: 0;">${escapeHtml(taskTitle || 'Resultado')}</div>
+      <div style="font-size: 11px; color: #71717a; margin-top: 6px;">${date}</div>
+    </div>
+    <div class="pdf-body">${resultHtml}</div>
+  `;
+  return wrap;
+}
+
+function downloadResultAsPdf() {
+  if (typeof window.html2pdf === 'undefined') {
+    toast('Librería de PDF aún no cargada — recarga la página', 'error');
+    return;
+  }
+  const output = document.getElementById('resultOutput');
+  if (!output) return;
+  const raw = output.dataset.raw || '';
+  if (!raw.trim()) { toast('No hay resultado para exportar', 'error'); return; }
+
+  const taskTitle = taskInput.value.trim() || 'Resultado';
+  const html = mdToHtml(raw);
+  const node = buildPdfDocument(taskTitle, html);
+
+  // Clipping wrapper: 0x0 with overflow hidden hides the node visually,
+  // but the inner node keeps its 794px layout so html2canvas captures it.
+  // Avoid opacity/visibility — html2canvas honors them and produces blank output.
+  const hider = document.createElement('div');
+  hider.setAttribute('aria-hidden', 'true');
+  hider.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;overflow:hidden;pointer-events:none;';
+  hider.appendChild(node);
+  document.body.appendChild(hider);
+
+  const filename = `marketing-skills-${taskTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50).replace(/^-|-$/g, '') || 'resultado'}.pdf`;
+
+  // Only html2canvas options are needed — we bypass html2pdf's buggy toPdf()
+  // step (which inserts a leading blank page) and slice the canvas manually.
+  const opts = {
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    },
+  };
+
+  toast('Generando PDF…');
+  // Two RAFs ensure layout + fonts have settled before html2canvas captures.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    window.html2pdf().set(opts).from(node)
+      .toCanvas()
+      .get('canvas')
+      .then(canvas => {
+        const jsPDFCtor = window.jspdf?.jsPDF;
+        if (typeof jsPDFCtor !== 'function') {
+          throw new Error('jsPDF no disponible en window.jspdf');
+        }
+        const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+        const pageWidthMm = pdf.internal.pageSize.getWidth();
+        const pageHeightMm = pdf.internal.pageSize.getHeight();
+        const pxPerMm = canvas.width / pageWidthMm;
+        const pageHeightPx = Math.floor(pageHeightMm * pxPerMm);
+        const nPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
+
+        const slice = document.createElement('canvas');
+        const ctx = slice.getContext('2d');
+        slice.width = canvas.width;
+
+        for (let i = 0; i < nPages; i++) {
+          const startY = i * pageHeightPx;
+          const sliceH = Math.min(pageHeightPx, canvas.height - startY);
+          slice.height = sliceH;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, slice.width, sliceH);
+          ctx.drawImage(canvas, 0, startY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+          const imgData = slice.toDataURL('image/jpeg', 0.95);
+          const sliceHmm = sliceH / pxPerMm;
+          if (i > 0) pdf.addPage();
+          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, sliceHmm);
+        }
+        pdf.save(filename);
+      })
+      .catch(err => {
+        console.error('[pdf]', err);
+        toast('Error generando PDF: ' + (err.message || err), 'error');
+      })
+      .finally(() => {
+        hider.remove();
+      });
+  }));
+}
 
 async function runImageGeneration() {
   const prompt = taskInput.value.trim();
