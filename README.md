@@ -115,6 +115,7 @@ Tarea del usuario
 - **Auto-ejecutar**: en un solo click hace smart match → ensamble del prompt → streaming de la respuesta.
 - **Historial** lateral con las últimas 30 consultas (tarea, skills, prompt, resultado, modelo, timestamp). Click sobre una entrada para restaurarla y re-ejecutar.
 - **Nueva consulta** (`Ctrl+K`): limpia tarea, contexto, adjuntos, skills y resultado, y aborta cualquier streaming en curso.
+- **Exportar resultado a PDF**: el panel de salida incluye un botón **Descargar PDF** que genera un PDF multipágina A4 del markdown renderizado (encabezado con título de la tarea + fecha) usando `html2canvas` + `jsPDF` directos en el navegador, sin servidor intermedio.
 - **Regla anti-alucinación:** el orquestador tiene dos variantes de prompt según haya o no contexto. Si la tarea menciona un asset concreto (landing, email, anuncio…) y no se aportó material real, devuelve solo una pregunta pidiendo el material en lugar de inventar ejemplos genéricos.
 
 ### Privacidad
@@ -185,7 +186,8 @@ O simplemente coloca la carpeta en Laragon/XAMPP y abre `http://localhost/Market
 5. La respuesta se transmite en directo en el panel de salida.
 6. (Opcional) Si la tarea pide visuales, activa la **generación de imágenes**, elige modelo (DALL-E 3, gpt-image-1, Imagen) y tamaño/calidad.
 7. Cada ejecución se guarda en el **historial** (icono de reloj en la barra superior) — clic para restaurar y re-ejecutar.
-8. **`Ctrl+K`** en cualquier momento para empezar una consulta nueva (limpia todo, aborta streaming en curso).
+8. (Opcional) Pulsa **Descargar PDF** sobre el resultado para obtener un PDF A4 con el markdown renderizado (título + fecha en el encabezado).
+9. **`Ctrl+K`** en cualquier momento para empezar una consulta nueva (limpia todo, aborta streaming en curso).
 
 ---
 
@@ -227,6 +229,11 @@ Para auditar landings con captura, recomendados: **Claude Sonnet 4.5** o **GPT-4
 ---
 
 ## Changelog
+
+### v4 — Exportar resultado a PDF
+- Nuevo botón **Descargar PDF** en el panel de salida del orquestador.
+- Genera un PDF A4 multipágina del markdown renderizado con encabezado (título de tarea + fecha) y estilos dedicados.
+- Implementación cliente-only con `html2canvas` + `jsPDF` y slicing manual del canvas para evitar la página en blanco inicial que introducía `html2pdf.bundle`.
 
 ### v3 — Generación de imágenes y prompt context-aware
 - Nuevo módulo de imágenes (OpenAI gpt-image-1, DALL-E 2/3, Google Imagen) con thumbnails canvas.
