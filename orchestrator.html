@@ -321,6 +321,63 @@
         border-color: transparent; color: white;
     }
     .btn-auto:hover:not(:disabled) { box-shadow: 0 10px 30px -10px rgba(6,182,212,0.5); transform: translateY(-1px); }
+    .btn-image {
+        background: linear-gradient(135deg, var(--accent-2), var(--accent));
+        border-color: transparent; color: white;
+    }
+    .btn-image:hover:not(:disabled) { box-shadow: 0 10px 30px -10px rgba(236,72,153,0.5); transform: translateY(-1px); }
+
+    .image-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 12px; margin-top: 4px;
+    }
+    .image-card {
+        background: var(--bg-elev); border: 1px solid var(--border);
+        border-radius: 10px; overflow: hidden;
+        display: flex; flex-direction: column;
+    }
+    .image-card img {
+        width: 100%; height: auto; display: block;
+        background: #06060b;
+    }
+    .image-card-foot {
+        display: flex; gap: 8px; padding: 10px;
+        border-top: 1px solid var(--border);
+    }
+    .image-card-foot .btn { padding: 6px 10px; font-size: 12px; }
+    .image-prompt {
+        font-size: 12px; color: var(--text-mute); margin-top: 10px;
+        padding: 10px 12px; background: var(--bg);
+        border: 1px solid var(--border); border-radius: 8px;
+        line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+    }
+
+    .tabs {
+        display: flex; gap: 4px; margin: 14px 0 16px;
+        border-bottom: 1px solid var(--border);
+    }
+    .tab {
+        background: transparent; border: none;
+        padding: 10px 14px; cursor: pointer;
+        color: var(--text-mute); font-family: inherit; font-size: 13px; font-weight: 500;
+        display: inline-flex; align-items: center; gap: 7px;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -1px;
+        transition: color 0.15s, border-color 0.15s;
+    }
+    .tab:hover { color: var(--text-dim); }
+    .tab.active {
+        color: var(--text);
+        border-bottom-color: var(--accent);
+    }
+    .tab-pill {
+        font-size: 9px; padding: 2px 6px; border-radius: 4px;
+        background: rgba(236,72,153,0.15); color: #f9a8d4;
+        font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; animation: fadeUp 0.2s; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
     .ctx-toggle {
         display: inline-flex; align-items: center; gap: 8px;
@@ -456,6 +513,10 @@
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                     Auto-ejecutar
                 </button>
+                <button class="btn btn-image" id="imageBtn" title="Genera una imagen a partir del texto del prompt (bypasea skills)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                    Generar imagen
+                </button>
             </div>
         </div>
     </div>
@@ -526,27 +587,74 @@
 
 <div class="modal-bg" id="settingsModal">
     <div class="modal">
-        <h3>Configurar proveedor de IA</h3>
-        <p>Elige tu proveedor y pega tu API key. Cada key se guarda en tu navegador (localStorage). Las requests van directo del navegador al proveedor — ningún servidor intermedio.</p>
-        <div class="field">
-            <label>Proveedor</label>
-            <select id="providerSelect"></select>
+        <h3>Configurar proveedores</h3>
+        <div class="tabs" role="tablist">
+            <button class="tab active" data-tab="text" role="tab" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                Texto
+            </button>
+            <button class="tab" data-tab="image" role="tab" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                Imagen
+                <span class="tab-pill">opcional</span>
+            </button>
         </div>
-        <div class="field" id="customUrlField" style="display:none">
-            <label>Endpoint URL (compatible OpenAI)</label>
-            <input type="text" id="customUrl" placeholder="http://localhost:11434/v1/chat/completions">
-            <div class="field-hint">Ej: Ollama, LocalAI, vLLM, LM Studio. Asegúrate de habilitar CORS en tu servidor local.</div>
+
+        <div class="tab-panel active" data-panel="text">
+            <p>Tu proveedor de chat para análisis, smart match, copywriting y todas las skills de texto. La key se guarda solo en tu navegador.</p>
+            <div class="field">
+                <label>Proveedor</label>
+                <select id="providerSelect"></select>
+            </div>
+            <div class="field" id="customUrlField" style="display:none">
+                <label>Endpoint URL (compatible OpenAI)</label>
+                <input type="text" id="customUrl" placeholder="http://localhost:11434/v1/chat/completions">
+                <div class="field-hint">Ej: Ollama, LocalAI, vLLM, LM Studio. Asegúrate de habilitar CORS en tu servidor local.</div>
+            </div>
+            <div class="field">
+                <label>API Key <span id="keyHelpLink" style="float:right;font-weight:400;text-transform:none;letter-spacing:0"></span></label>
+                <input type="password" id="apiKey" placeholder="sk-...">
+                <div class="field-hint" id="keyHint">Tu key se guarda solo en tu navegador.</div>
+            </div>
+            <div class="field">
+                <label>Modelo</label>
+                <select id="modelSelect"></select>
+                <input type="text" id="customModel" placeholder="ID del modelo (ej: llama3.1)" style="display:none;margin-top:6px">
+            </div>
         </div>
-        <div class="field">
-            <label>API Key <span id="keyHelpLink" style="float:right;font-weight:400;text-transform:none;letter-spacing:0"></span></label>
-            <input type="password" id="apiKey" placeholder="sk-...">
-            <div class="field-hint" id="keyHint">Tu key se guarda solo en tu navegador.</div>
+
+        <div class="tab-panel" data-panel="image">
+            <p>Para usar el botón <strong>Generar imagen</strong>. Independiente del proveedor de texto.</p>
+            <div class="field">
+                <label>Proveedor de imagen</label>
+                <select id="imgProviderSelect"></select>
+            </div>
+            <div class="field" id="imgCustomUrlField" style="display:none">
+                <label>Endpoint URL (compatible OpenAI Images)</label>
+                <input type="text" id="imgCustomUrl" placeholder="http://localhost:.../v1/images/generations">
+            </div>
+            <div class="field">
+                <label>API Key <span id="imgKeyHelpLink" style="float:right;font-weight:400;text-transform:none;letter-spacing:0"></span></label>
+                <input type="password" id="imgApiKey" placeholder="sk-...">
+                <div class="field-hint" id="imgKeyHint">Tu key se guarda solo en tu navegador.</div>
+            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label>Modelo</label>
+                    <select id="imgModelSelect"></select>
+                    <input type="text" id="imgCustomModel" placeholder="ID del modelo" style="display:none;margin-top:6px">
+                </div>
+                <div class="field">
+                    <label>Tamaño</label>
+                    <select id="imgSizeSelect"></select>
+                </div>
+            </div>
+            <div class="field" id="imgQualityField">
+                <label>Calidad</label>
+                <select id="imgQualitySelect"></select>
+            </div>
         </div>
-        <div class="field">
-            <label>Modelo</label>
-            <select id="modelSelect"></select>
-            <input type="text" id="customModel" placeholder="ID del modelo (ej: llama3.1)" style="display:none;margin-top:6px">
-        </div>
+
         <div class="modal-actions">
             <button class="btn btn-ghost" id="clearKeyBtn">Borrar key</button>
             <button class="btn btn-ghost" id="cancelSettingsBtn">Cancelar</button>

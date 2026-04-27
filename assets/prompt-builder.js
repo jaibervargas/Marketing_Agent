@@ -1,25 +1,38 @@
 import { fetchUrlContent } from './url-fetcher.js';
 
-const ROLE_PROMPT = `# Rol: Marketing Orchestrator
+const ROLE_BASE = `# Rol: Marketing Orchestrator
 
-Eres un **agente orquestador de marketing**. Tu misión es analizar la tarea del usuario y ejecutarla aplicando, en el orden correcto, las skills especializadas que te paso a continuación. Cada skill es un experto: léelas, decide cuáles usar y en qué secuencia, y entrega un resultado final accionable.
+Eres un **agente orquestador de marketing**. Tu misión es analizar la tarea del usuario y ejecutarla aplicando, en el orden correcto, las skills especializadas que te paso a continuación. Cada skill es un experto: léelas, decide cuáles usar y en qué secuencia, y entrega un resultado final accionable.`;
 
-## REGLA CRÍTICA — antes de hacer cualquier otra cosa
+const ROLE_WITH_CONTEXT = `${ROLE_BASE}
 
-**NUNCA inventes ejemplos genéricos ni placeholders.** Si la tarea menciona un asset concreto (landing page, homepage, email específico, anuncio, blog post, secuencia, paywall, formulario, etc.) y la sección "Contexto provisto por el usuario" NO incluye el material real (URL, copy pegado, archivos o capturas), tu PRIMERA Y ÚNICA respuesta debe ser UNA pregunta breve y específica pidiendo el material faltante. Ejemplos de respuesta correcta:
+## Material provisto — úsalo directamente
 
-> "Para auditar el copy necesito el material real. ¿Puedes pegar el copy actual de la landing aquí, compartir la URL pública, o subir una captura?"
+El usuario YA proporcionó el material concreto (ver sección "Contexto provisto por el usuario" más abajo: URL extraída con Jina Reader, copy pegado, archivos o capturas). **NO vuelvas a pedir la URL, el copy ni capturas: ese contenido ya está en este mismo mensaje.** Trabaja sobre él literalmente, citando frases reales cuando hagas auditorías o reescrituras.
 
-NO redactes auditorías con ejemplos inventados como "Nuestra solución integral optimiza…". Eso es inútil para el usuario.
+## Cómo trabajar
 
-**Excepción**: si la tarea es puramente estratégica (ej. "ideas de marketing para mi SaaS", "plantilla de email de bienvenida desde cero", "estrategia de pricing") y no requiere material existente, procede directamente.
-
-## Cómo trabajar (cuando SÍ tengas el material)
-
-1. **Diagnóstico**: 1-2 frases sobre qué hay que producir, para quién, y qué material concreto vas a usar (cita la URL/archivo).
+1. **Diagnóstico**: 1-2 frases sobre qué hay que producir, para quién, y qué material concreto vas a usar (cita la URL/archivo del contexto).
 2. **Plan de ejecución**: enumera las skills que vas a aplicar y por qué, en el orden óptimo.
 3. **Ejecuta** cada skill siguiendo SUS instrucciones al pie de la letra, sobre el material real provisto. No improvises ni mezcles frameworks.
 4. **Entregable**: resultado final (copy reescrito con antes/después, auditoría con citas literales del copy actual, plan accionable, etc.). Incluye sección "Próximos pasos" al final.`;
+
+const ROLE_NO_CONTEXT = `${ROLE_BASE}
+
+## REGLA CRÍTICA — falta el material
+
+El usuario NO proporcionó URL, copy real, archivos ni capturas. Si la tarea menciona un asset concreto (landing page, homepage, email específico, anuncio, blog post, secuencia, paywall, formulario, etc.), tu PRIMERA Y ÚNICA respuesta debe ser una pregunta breve pidiendo el material faltante (URL pública, copy pegado o captura). **NUNCA inventes ejemplos genéricos** del tipo "Nuestra solución integral optimiza…" — eso es inútil para el usuario.
+
+Formula la pregunta con tus propias palabras, adaptada al asset concreto que mencionó la tarea. No copies frases plantilla.
+
+**Excepción**: si la tarea es puramente estratégica (ej. "ideas de marketing para mi SaaS", "plantilla de email de bienvenida desde cero", "estrategia de pricing") y no requiere material existente, procede directamente con las skills.
+
+## Cómo trabajar (si la tarea es estratégica y no requiere material)
+
+1. **Diagnóstico**: 1-2 frases sobre qué hay que producir y para quién.
+2. **Plan de ejecución**: enumera las skills que vas a aplicar y por qué, en el orden óptimo.
+3. **Ejecuta** cada skill siguiendo SUS instrucciones al pie de la letra. No improvises ni mezcles frameworks.
+4. **Entregable**: resultado final accionable. Incluye sección "Próximos pasos" al final.`;
 
 export async function buildPrompt({ task, slugs, skills, context }, { onProgress } = {}) {
   const bySlug = Object.fromEntries(skills.map(s => [s.slug, s]));
@@ -90,10 +103,22 @@ export async function buildPrompt({ task, slugs, skills, context }, { onProgress
   }
 
   const contextBlock = hasContext
-    ? `## Contexto provisto por el usuario\n\n${contextParts.join('\n\n')}\n\n---\n\n`
-    : `## Contexto provisto por el usuario\n\n_(El usuario NO proporcionó URL, copy real, archivos ni capturas)_\n\n---\n\n`;
+    ? `## Contexto provisto por el usuario\n\n${contextParts.join('\n\n')}`
+    : `## Contexto provisto por el usuario\n\n_(El usuario NO proporcionó URL, copy real, archivos ni capturas)_`;
 
-  const prompt = `${ROLE_PROMPT}
+  const rolePrompt = hasContext ? ROLE_WITH_CONTEXT : ROLE_NO_CONTEXT;
+
+  const finalInstruction = hasContext
+    ? 'Empieza ahora. El material está arriba en el contexto: úsalo directamente, no lo pidas de nuevo. Ejecuta el plan completo.'
+    : 'Empieza ahora. Si falta material concreto y la tarea no es puramente estratégica, haz solo la pregunta de pedido. Si tienes lo necesario, ejecuta el plan completo.';
+
+  const prompt = `${rolePrompt}
+
+---
+
+${contextBlock}
+
+---
 
 ## Skills disponibles para esta tarea
 
@@ -107,11 +132,11 @@ ${skillsBlock}
 
 ---
 
-${contextBlock}## Tarea del usuario
+## Tarea del usuario
 
 > ${task}
 
-Empieza ahora. Si falta material concreto, haz solo la pregunta de pedido. Si tienes lo necesario, ejecuta el plan completo.`;
+${finalInstruction}`;
 
   return {
     prompt,

@@ -1,13 +1,16 @@
 import { loadSkills, scoreSkills } from './skills-loader.js';
 import { mdToHtml, escapeHtml } from './md.js';
 import { PROVIDERS } from './providers.js';
+import { IMAGE_PROVIDERS } from './image-providers.js';
 import { buildPrompt as buildPromptModule } from './prompt-builder.js';
 import { smartMatch, runStream } from './llm-client.js';
+import { generateImage, makeThumbnail } from './image-client.js';
 import { getHistory, setHistory, saveToHistory, deleteFromHistory, clearHistory, fmtTime } from './history.js';
 
 const taskInput = document.getElementById('taskInput');
 const analyzeBtn = document.getElementById('analyzeBtn');
 const autoBtn = document.getElementById('autoBtn');
+const imageBtn = document.getElementById('imageBtn');
 const stage = document.getElementById('stage');
 
 let allSkills = [];
@@ -40,6 +43,26 @@ function hasUsableConfig() {
   return !!c.apiKey;
 }
 
+function getImageConfig() {
+  const provider = localStorage.getItem('img_provider') || 'openai';
+  const prov = IMAGE_PROVIDERS[provider] || IMAGE_PROVIDERS.openai;
+  return {
+    provider,
+    apiKey: localStorage.getItem('img_apikey_' + provider) || '',
+    model: localStorage.getItem('img_model_' + provider) || (prov.models[0] || ''),
+    size: localStorage.getItem('img_size_' + provider) || (prov.sizes[0] || ''),
+    quality: localStorage.getItem('img_quality_' + provider) || (prov.qualities[0] || ''),
+    customUrl: localStorage.getItem('img_custom_url') || '',
+  };
+}
+
+function hasUsableImageConfig() {
+  const c = getImageConfig();
+  if (!c.model && c.provider !== 'custom') return false;
+  if (c.provider === 'custom') return !!c.customUrl;
+  return !!c.apiKey;
+}
+
 document.querySelectorAll('.example-chip').forEach(c => {
   c.addEventListener('click', () => { taskInput.value = c.dataset.ex; taskInput.focus(); });
 });
@@ -48,6 +71,7 @@ taskInput.addEventListener('keydown', e => {
 });
 analyzeBtn.addEventListener('click', () => analyze());
 autoBtn.addEventListener('click', () => analyze(true));
+imageBtn.addEventListener('click', () => runImageGeneration());
 
 function localKeywordMatch(task) {
   const scored = scoreSkills(task, allSkills).slice(0, 8);
@@ -372,6 +396,119 @@ document.addEventListener('click', e => {
   }
 });
 
+async function runImageGeneration() {
+  const prompt = taskInput.value.trim();
+  if (!prompt) { taskInput.focus(); toast('Escribe un prompt visual primero', 'error'); return; }
+  if (!hasUsableImageConfig()) {
+    toast('Configura un proveedor de imágenes primero', 'error');
+    openSettings();
+    return;
+  }
+  const cfg = getImageConfig();
+  const prov = IMAGE_PROVIDERS[cfg.provider];
+  const provName = prov?.name || cfg.provider;
+
+  if (currentRunController) { try { currentRunController.abort(); } catch {} }
+  currentRunController = new AbortController();
+
+  stage.innerHTML = `
+    <div class="step">
+      <div class="step-head">
+        <div class="step-num">1</div>
+        <div class="step-title">Generación de imagen</div>
+        <div class="step-sub" id="imgRunStatus">${escapeHtml(cfg.model)} · ${escapeHtml(cfg.size || '')}</div>
+      </div>
+      <div id="imgResultArea">
+        <div class="pulse" style="color:var(--text-mute)">Generando con ${escapeHtml(provName)}…</div>
+      </div>
+      <div class="image-prompt"><strong style="color:var(--text-dim)">Prompt:</strong> ${escapeHtml(prompt)}</div>
+    </div>`;
+  stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  imageBtn.disabled = true;
+  const origLabel = imageBtn.innerHTML;
+  imageBtn.innerHTML = '<span class="spinner"></span> Generando...';
+
+  try {
+    const result = await generateImage({
+      provider: cfg.provider,
+      apiKey: cfg.apiKey,
+      model: cfg.model,
+      customUrl: cfg.customUrl,
+      prompt,
+      size: cfg.size,
+      quality: cfg.quality,
+      n: 1,
+      signal: currentRunController.signal,
+    });
+
+    const area = document.getElementById('imgResultArea');
+    const status = document.getElementById('imgRunStatus');
+    const cards = result.images.map((img, i) => {
+      const src = img.b64 ? `data:${img.mime};base64,${img.b64}` : img.url;
+      const fileBase = `image-${Date.now()}-${i + 1}`;
+      const ext = (img.mime?.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      return `
+        <div class="image-card">
+          <img src="${src}" alt="Imagen generada ${i + 1}">
+          <div class="image-card-foot">
+            <a class="btn" href="${src}" download="${fileBase}.${ext}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Descargar
+            </a>
+            <button class="btn img-copy-btn" data-src="${src}">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+              Copiar
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+    area.innerHTML = `<div class="image-grid">${cards}</div>`;
+    status.textContent = `✓ ${(result.elapsedMs / 1000).toFixed(1)}s · ${cfg.model}`;
+
+    const first = result.images[0];
+    const thumb = first?.b64 ? await makeThumbnail(first.b64, first.mime) : (first?.url || null);
+    saveToHistory({
+      kind: 'image',
+      task: prompt,
+      thumbnail: thumb,
+      model: `${prov?.short || cfg.provider} · ${cfg.model}`,
+      size: cfg.size,
+    });
+  } catch (e) {
+    const area = document.getElementById('imgResultArea');
+    const status = document.getElementById('imgRunStatus');
+    if (e.name === 'AbortError') {
+      if (area) area.innerHTML = '<div style="color:var(--text-mute);font-size:13px">— Cancelado por el usuario —</div>';
+      if (status) status.textContent = '⏹ Cancelado';
+    } else {
+      if (area) area.innerHTML = `<div style="color:#fca5a5">Error: ${escapeHtml(e.message)}</div>`;
+      if (status) status.textContent = '✗ Falló';
+    }
+  } finally {
+    imageBtn.disabled = false;
+    imageBtn.innerHTML = origLabel;
+    currentRunController = null;
+  }
+}
+
+document.addEventListener('click', async e => {
+  const copyBtn = e.target.closest('.img-copy-btn');
+  if (!copyBtn) return;
+  const src = copyBtn.dataset.src || '';
+  try {
+    if (src.startsWith('data:')) {
+      const blob = await (await fetch(src)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    } else {
+      await navigator.clipboard.writeText(src);
+    }
+    toast('Imagen copiada');
+  } catch {
+    try { await navigator.clipboard.writeText(src); toast('URL copiada'); }
+    catch { toast('No se pudo copiar', 'error'); }
+  }
+});
+
 /* Contexto adicional */
 const ctxToggle = document.getElementById('ctxToggle');
 const ctxPanel = document.getElementById('ctxPanel');
@@ -549,6 +686,18 @@ const customUrlInput = document.getElementById('customUrl');
 const keyHint = document.getElementById('keyHint');
 const keyHelpLink = document.getElementById('keyHelpLink');
 
+const imgProviderSelect = document.getElementById('imgProviderSelect');
+const imgApiKeyInput = document.getElementById('imgApiKey');
+const imgModelSelect = document.getElementById('imgModelSelect');
+const imgCustomModelInput = document.getElementById('imgCustomModel');
+const imgSizeSelect = document.getElementById('imgSizeSelect');
+const imgQualitySelect = document.getElementById('imgQualitySelect');
+const imgQualityField = document.getElementById('imgQualityField');
+const imgCustomUrlField = document.getElementById('imgCustomUrlField');
+const imgCustomUrlInput = document.getElementById('imgCustomUrl');
+const imgKeyHint = document.getElementById('imgKeyHint');
+const imgKeyHelpLink = document.getElementById('imgKeyHelpLink');
+
 function refreshKeyState() {
   settingsBtn.classList.toggle('has-key', hasUsableConfig());
   const c = getActiveConfig();
@@ -582,6 +731,44 @@ function populateProviders() {
   providerSelect.innerHTML = Object.entries(PROVIDERS).map(([key, p]) =>
     `<option value="${key}">${p.name}</option>`,
   ).join('');
+}
+
+function populateImageProviders() {
+  imgProviderSelect.innerHTML = Object.entries(IMAGE_PROVIDERS).map(([key, p]) =>
+    `<option value="${key}">${p.name}</option>`,
+  ).join('');
+}
+
+function populateImageProviderFields(providerKey) {
+  const prov = IMAGE_PROVIDERS[providerKey];
+  if (!prov) return;
+
+  if (prov.models.length > 0) {
+    imgModelSelect.innerHTML = prov.models.map(m => `<option value="${m}">${m}</option>`).join('') + '<option value="__custom__">Otro modelo (escribir)…</option>';
+    imgModelSelect.style.display = '';
+    imgCustomModelInput.style.display = 'none';
+  } else {
+    imgModelSelect.style.display = 'none';
+    imgCustomModelInput.style.display = '';
+  }
+
+  imgSizeSelect.innerHTML = (prov.sizes || []).map(s => `<option value="${s}">${s}</option>`).join('');
+
+  if (prov.qualities && prov.qualities.length > 0) {
+    imgQualitySelect.innerHTML = prov.qualities.map(q => `<option value="${q}">${q}</option>`).join('');
+    imgQualityField.style.display = '';
+  } else {
+    imgQualityField.style.display = 'none';
+  }
+
+  imgCustomUrlField.style.display = providerKey === 'custom' ? '' : 'none';
+  imgKeyHint.textContent = providerKey === 'custom'
+    ? 'Para servidores con endpoint compatible OpenAI Images. CORS debe estar habilitado.'
+    : 'Tu key se guarda solo en tu navegador.';
+  imgKeyHelpLink.innerHTML = prov.keyUrl
+    ? `<a href="${prov.keyUrl}" target="_blank" style="color:var(--accent-3);text-decoration:none;font-size:11px">Conseguir key →</a>`
+    : '';
+  imgApiKeyInput.placeholder = prov.keyHint;
 }
 
 function populateModels(providerKey) {
@@ -621,6 +808,27 @@ function openSettings() {
     customModelInput.value = c.model;
   }
   customUrlInput.value = c.customUrl;
+
+  const imgCfg = getImageConfig();
+  populateImageProviders();
+  imgProviderSelect.value = imgCfg.provider;
+  populateImageProviderFields(imgCfg.provider);
+  imgApiKeyInput.value = imgCfg.apiKey;
+  const imgProv = IMAGE_PROVIDERS[imgCfg.provider];
+  if (imgCfg.model && imgProv?.models.includes(imgCfg.model)) {
+    imgModelSelect.value = imgCfg.model;
+    imgCustomModelInput.style.display = 'none';
+  } else if (imgCfg.model) {
+    if (imgProv?.models.length > 0) {
+      imgModelSelect.value = '__custom__';
+      imgCustomModelInput.style.display = '';
+    }
+    imgCustomModelInput.value = imgCfg.model;
+  }
+  if (imgCfg.size && imgProv?.sizes.includes(imgCfg.size)) imgSizeSelect.value = imgCfg.size;
+  if (imgCfg.quality && imgProv?.qualities.includes(imgCfg.quality)) imgQualitySelect.value = imgCfg.quality;
+  imgCustomUrlInput.value = imgCfg.customUrl;
+
   settingsModal.classList.add('open');
 }
 
@@ -636,8 +844,32 @@ modelSelect.addEventListener('change', () => {
   customModelInput.style.display = modelSelect.value === '__custom__' ? '' : 'none';
 });
 
+imgProviderSelect.addEventListener('change', () => {
+  const key = imgProviderSelect.value;
+  populateImageProviderFields(key);
+  imgApiKeyInput.value = localStorage.getItem('img_apikey_' + key) || '';
+  const prov = IMAGE_PROVIDERS[key];
+  const savedModel = localStorage.getItem('img_model_' + key);
+  if (savedModel && prov.models.includes(savedModel)) imgModelSelect.value = savedModel;
+  const savedSize = localStorage.getItem('img_size_' + key);
+  if (savedSize && prov.sizes.includes(savedSize)) imgSizeSelect.value = savedSize;
+  const savedQuality = localStorage.getItem('img_quality_' + key);
+  if (savedQuality && prov.qualities.includes(savedQuality)) imgQualitySelect.value = savedQuality;
+});
+imgModelSelect.addEventListener('change', () => {
+  imgCustomModelInput.style.display = imgModelSelect.value === '__custom__' ? '' : 'none';
+});
+
 settingsBtn.addEventListener('click', openSettings);
 document.getElementById('cancelSettingsBtn').addEventListener('click', () => settingsModal.classList.remove('open'));
+
+settingsModal.querySelectorAll('.tab').forEach(t => {
+  t.addEventListener('click', () => {
+    const target = t.dataset.tab;
+    settingsModal.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+    settingsModal.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === target));
+  });
+});
 document.getElementById('saveSettingsBtn').addEventListener('click', () => {
   const provider = providerSelect.value;
   const apiKey = apiKeyInput.value.trim();
@@ -652,8 +884,26 @@ document.getElementById('saveSettingsBtn').addEventListener('click', () => {
   localStorage.setItem('llm_model_' + provider, model);
   if (provider === 'custom') localStorage.setItem('llm_custom_url', customUrlInput.value.trim());
 
+  const imgProvider = imgProviderSelect.value;
+  const imgApiKey = imgApiKeyInput.value.trim();
+  const imgProv = IMAGE_PROVIDERS[imgProvider];
+  const imgModel = imgModelSelect.value === '__custom__' || imgModelSelect.style.display === 'none'
+    ? imgCustomModelInput.value.trim()
+    : imgModelSelect.value;
+  const imgSize = imgSizeSelect.value;
+  const imgQuality = imgQualityField.style.display === 'none' ? '' : imgQualitySelect.value;
+  const hasImgKey = imgApiKey || (imgProvider === 'custom' && imgCustomUrlInput.value.trim());
+  if (hasImgKey || imgModel) {
+    localStorage.setItem('img_provider', imgProvider);
+    if (imgApiKey) localStorage.setItem('img_apikey_' + imgProvider, imgApiKey);
+    if (imgModel) localStorage.setItem('img_model_' + imgProvider, imgModel);
+    if (imgSize) localStorage.setItem('img_size_' + imgProvider, imgSize);
+    if (imgQuality) localStorage.setItem('img_quality_' + imgProvider, imgQuality);
+    if (imgProvider === 'custom') localStorage.setItem('img_custom_url', imgCustomUrlInput.value.trim());
+  }
+
   settingsModal.classList.remove('open');
-  toast(`Guardado: ${PROVIDERS[provider].name}`);
+  toast(`Guardado: ${PROVIDERS[provider].name}${hasImgKey ? ' + ' + (imgProv?.short || imgProvider) : ''}`);
   refreshKeyState();
 });
 document.getElementById('clearKeyBtn').addEventListener('click', () => {
@@ -729,17 +979,27 @@ function renderHistory() {
     historyList.innerHTML = '<div class="drawer-empty">Aún no hay historial. Las tareas que ejecutes aparecerán aquí.</div>';
     return;
   }
-  historyList.innerHTML = arr.map(h => `
-    <div class="hist-item" data-id="${h.id}">
-      <button class="hist-del" data-del="${h.id}" title="Borrar">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-      </button>
-      <div class="hist-task">${escapeHtml(h.task)}</div>
-      <div class="hist-meta">
-        <span class="hist-time">${fmtTime(h.ts)}</span>
-        <span class="hist-skills">${(h.slugs || []).length} skills · ${escapeHtml(h.model || '')}</span>
-      </div>
-    </div>`).join('');
+  historyList.innerHTML = arr.map(h => {
+    const isImage = h.kind === 'image';
+    const meta = isImage
+      ? `<span class="hist-skills">🖼 imagen · ${escapeHtml(h.model || '')}</span>`
+      : `<span class="hist-skills">${(h.slugs || []).length} skills · ${escapeHtml(h.model || '')}</span>`;
+    const thumb = isImage && h.thumbnail
+      ? `<img src="${h.thumbnail}" alt="" style="width:100%;border-radius:6px;margin-bottom:8px;display:block">`
+      : '';
+    return `
+      <div class="hist-item" data-id="${h.id}">
+        <button class="hist-del" data-del="${h.id}" title="Borrar">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+        </button>
+        ${thumb}
+        <div class="hist-task">${escapeHtml(h.task)}</div>
+        <div class="hist-meta">
+          <span class="hist-time">${fmtTime(h.ts)}</span>
+          ${meta}
+        </div>
+      </div>`;
+  }).join('');
 }
 function openDrawer() {
   renderHistory();
@@ -777,6 +1037,23 @@ historyList.addEventListener('click', e => {
 
 function restoreFromHistory(entry) {
   taskInput.value = entry.task;
+  if (entry.kind === 'image') {
+    const thumb = entry.thumbnail
+      ? `<img src="${entry.thumbnail}" alt="Imagen previa" style="max-width:100%;border-radius:8px;border:1px solid var(--border)">`
+      : '<div style="color:var(--text-mute);font-size:13px">(sin miniatura guardada)</div>';
+    stage.innerHTML = `
+      <div class="step">
+        <div class="step-head">
+          <div class="step-num">1</div>
+          <div class="step-title">Imagen anterior</div>
+          <div class="step-sub">${fmtTime(entry.ts)} · ${escapeHtml(entry.model || '')}${entry.size ? ' · ' + escapeHtml(entry.size) : ''}</div>
+        </div>
+        <div style="font-size:13px;color:var(--text-dim);margin-bottom:12px">Solo se guardó una miniatura. Para volver a generarla, pulsa el botón <strong>Generar imagen</strong> arriba.</div>
+        ${thumb}
+        <div class="image-prompt"><strong style="color:var(--text-dim)">Prompt:</strong> ${escapeHtml(entry.task)}</div>
+      </div>`;
+    return;
+  }
   currentPrompt = entry.prompt;
   selectedSlugs = new Set(entry.slugs || []);
   matchedSkills = (entry.slugs || []).map(slug => ({
