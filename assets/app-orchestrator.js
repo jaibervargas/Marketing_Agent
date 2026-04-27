@@ -457,8 +457,8 @@ function buildPdfDocument(taskTitle, resultHtml) {
 }
 
 function downloadResultAsPdf() {
-  if (typeof window.html2pdf === 'undefined') {
-    toast('Librería de PDF aún no cargada — recarga la página', 'error');
+  if (typeof window.html2canvas !== 'function' || !(window.jspdf?.jsPDF || window.jsPDF)) {
+    toast('Librerías de PDF no cargadas — recarga la página', 'error');
     return;
   }
   const output = document.getElementById('resultOutput');
@@ -481,53 +481,55 @@ function downloadResultAsPdf() {
 
   const filename = `marketing-skills-${taskTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 50).replace(/^-|-$/g, '') || 'resultado'}.pdf`;
 
-  // Only html2canvas options are needed — we bypass html2pdf's buggy toPdf()
-  // step (which inserts a leading blank page) and slice the canvas manually.
-  const opts = {
-    html2canvas: {
+  toast('Generando PDF…');
+  // Two RAFs ensure layout + fonts have settled before html2canvas captures.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    // Bypass html2pdf entirely. Its toContainer step moves the source element
+    // into an overlay positioned at left:-100000px, which causes html2canvas
+    // to produce a canvas with blank space at the top. Calling html2canvas
+    // directly captures the wrap from where we attached it.
+    if (typeof window.html2canvas !== 'function') {
+      toast('html2canvas no disponible', 'error');
+      hider.remove();
+      return;
+    }
+    window.html2canvas(node, {
       scale: 2,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false,
-    },
-  };
+    }).then(canvas => {
+      console.log('[pdf] canvas →', { width: canvas.width, height: canvas.height });
 
-  toast('Generando PDF…');
-  // Two RAFs ensure layout + fonts have settled before html2canvas captures.
-  requestAnimationFrame(() => requestAnimationFrame(() => {
-    window.html2pdf().set(opts).from(node)
-      .toCanvas()
-      .get('canvas')
-      .then(canvas => {
-        const jsPDFCtor = window.jspdf?.jsPDF;
-        if (typeof jsPDFCtor !== 'function') {
-          throw new Error('jsPDF no disponible en window.jspdf');
-        }
-        const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
-        const pageWidthMm = pdf.internal.pageSize.getWidth();
-        const pageHeightMm = pdf.internal.pageSize.getHeight();
-        const pxPerMm = canvas.width / pageWidthMm;
-        const pageHeightPx = Math.floor(pageHeightMm * pxPerMm);
-        const nPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
+      const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
+      if (typeof jsPDFCtor !== 'function') {
+        throw new Error('jsPDF no expuesto globalmente');
+      }
+      const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+      const pageWidthMm = pdf.internal.pageSize.getWidth();
+      const pageHeightMm = pdf.internal.pageSize.getHeight();
+      const pxPerMm = canvas.width / pageWidthMm;
+      const pageHeightPx = Math.floor(pageHeightMm * pxPerMm);
+      const nPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
 
-        const slice = document.createElement('canvas');
-        const ctx = slice.getContext('2d');
-        slice.width = canvas.width;
+      const slice = document.createElement('canvas');
+      const ctx = slice.getContext('2d');
+      slice.width = canvas.width;
 
-        for (let i = 0; i < nPages; i++) {
-          const startY = i * pageHeightPx;
-          const sliceH = Math.min(pageHeightPx, canvas.height - startY);
-          slice.height = sliceH;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, slice.width, sliceH);
-          ctx.drawImage(canvas, 0, startY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
-          const imgData = slice.toDataURL('image/jpeg', 0.95);
-          const sliceHmm = sliceH / pxPerMm;
-          if (i > 0) pdf.addPage();
-          pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, sliceHmm);
-        }
-        pdf.save(filename);
-      })
+      for (let i = 0; i < nPages; i++) {
+        const startY = i * pageHeightPx;
+        const sliceH = Math.min(pageHeightPx, canvas.height - startY);
+        slice.height = sliceH;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, slice.width, sliceH);
+        ctx.drawImage(canvas, 0, startY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        const imgData = slice.toDataURL('image/jpeg', 0.95);
+        const sliceHmm = sliceH / pxPerMm;
+        if (i > 0) pdf.addPage();
+        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidthMm, sliceHmm);
+      }
+      pdf.save(filename);
+    })
       .catch(err => {
         console.error('[pdf]', err);
         toast('Error generando PDF: ' + (err.message || err), 'error');
