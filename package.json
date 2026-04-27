@@ -1,0 +1,14 @@
+{
+  "name": "marketing-agent",
+  "version": "2.0.0",
+  "description": "Hub estático en JavaScript que convierte el repo marketingskills en un explorador + orquestador IA listo para hostear en GitHub Pages.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-skills.mjs",
+    "dev": "npx --yes serve@latest -l 3000 ."
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

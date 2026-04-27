@@ -1,26 +1,3 @@
-<?php
-require_once __DIR__ . '/skills_loader.php';
-$skills = load_skills();
-
-$categories = [];
-foreach ($skills as $s) {
-    $categories[$s['category']] = ($categories[$s['category']] ?? 0) + 1;
-}
-ksort($categories);
-
-if (isset($_GET['skill'])) {
-    $slug = preg_replace('/[^a-z0-9-]/', '', $_GET['skill']);
-    foreach ($skills as $s) {
-        if ($s['slug'] === $slug) {
-            header('Content-Type: application/json; charset=utf-8');
-            echo json_encode($s);
-            exit;
-        }
-    }
-    http_response_code(404);
-    exit;
-}
-?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -382,18 +359,18 @@ if (isset($_GET['skill'])) {
             <span>Marketing Skills</span>
         </div>
         <div class="nav-links">
-            <a href="orchestrator.php" class="nav-link">Orquestador</a>
-            <a href="index.php" class="nav-link active">Explorar skills</a>
+            <a href="orchestrator.html" class="nav-link">Orquestador</a>
+            <a href="index.html" class="nav-link active">Explorar skills</a>
         </div>
     </nav>
     <header>
-        <span class="badge">Explorador · <?= count($skills) ?> skills</span>
+        <span class="badge" id="headerBadge">Explorador</span>
         <h1>Tu arsenal de marketing,<br>listo para tu agente IA</h1>
-        <p class="subtitle">¿No sabes qué skill usar? Ve al <a href="orchestrator.php" style="color:#c4b5fd;text-decoration:underline">Orquestador</a> y describe lo que quieres lograr — él elige las skills correctas por ti.</p>
+        <p class="subtitle">¿No sabes qué skill usar? Ve al <a href="orchestrator.html" style="color:#c4b5fd;text-decoration:underline">Orquestador</a> y describe lo que quieres lograr — él elige las skills correctas por ti.</p>
         <div class="stats">
-            <div><div class="stat-num"><?= count($skills) ?></div><div class="stat-label">Skills</div></div>
-            <div><div class="stat-num"><?= count($categories) ?></div><div class="stat-label">Categorías</div></div>
-            <div><div class="stat-num"><?= number_format(array_sum(array_column($skills, 'wordCount'))) ?></div><div class="stat-label">Palabras de conocimiento</div></div>
+            <div><div class="stat-num" id="statSkills">—</div><div class="stat-label">Skills</div></div>
+            <div><div class="stat-num" id="statCategories">—</div><div class="stat-label">Categorías</div></div>
+            <div><div class="stat-num" id="statWords">—</div><div class="stat-label">Palabras de conocimiento</div></div>
         </div>
     </header>
 
@@ -403,29 +380,11 @@ if (isset($_GET['skill'])) {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 <input class="search" id="search" placeholder="Buscar skill, palabra clave o tema...">
             </div>
-            <div class="filters" id="filters">
-                <button class="filter-btn active" data-cat="all">Todas <span class="count"><?= count($skills) ?></span></button>
-                <?php foreach ($categories as $cat => $count): ?>
-                    <button class="filter-btn" data-cat="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?> <span class="count"><?= $count ?></span></button>
-                <?php endforeach; ?>
-            </div>
+            <div class="filters" id="filters"></div>
         </div>
     </div>
 
     <div class="grid" id="grid">
-        <?php foreach ($skills as $s): ?>
-            <article class="card" data-slug="<?= htmlspecialchars($s['slug']) ?>" data-cat="<?= htmlspecialchars($s['category']) ?>" data-search="<?= htmlspecialchars(strtolower($s['name'].' '.$s['description'])) ?>">
-                <div class="card-head">
-                    <h3 class="card-title"><?= htmlspecialchars($s['name']) ?></h3>
-                    <span class="card-cat cat-<?= htmlspecialchars($s['category']) ?>"><?= htmlspecialchars($s['category']) ?></span>
-                </div>
-                <p class="card-desc"><?= htmlspecialchars($s['description']) ?></p>
-                <div class="card-foot">
-                    <span class="card-meta"><?= $s['version'] ? 'v'.htmlspecialchars($s['version']) : '' ?> · <?= number_format($s['wordCount']) ?> palabras</span>
-                    <svg class="card-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </div>
-            </article>
-        <?php endforeach; ?>
         <div class="empty" id="empty" style="display:none">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
             <p>No se encontraron skills con esa búsqueda</p>
@@ -462,152 +421,6 @@ if (isset($_GET['skill'])) {
     </div>
 </div>
 
-<script>
-    const cards = document.querySelectorAll('.card');
-    const searchInput = document.getElementById('search');
-    const filters = document.getElementById('filters');
-    const empty = document.getElementById('empty');
-    let activeCat = 'all';
-
-    cards.forEach(card => {
-        card.addEventListener('mousemove', e => {
-            const r = card.getBoundingClientRect();
-            card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
-            card.style.setProperty('--my', ((e.clientY - r.top) / r.height * 100) + '%');
-        });
-    });
-
-    function applyFilter() {
-        const q = searchInput.value.toLowerCase().trim();
-        let visible = 0;
-        cards.forEach(card => {
-            const matchCat = activeCat === 'all' || card.dataset.cat === activeCat;
-            const matchSearch = !q || card.dataset.search.includes(q);
-            const show = matchCat && matchSearch;
-            card.style.display = show ? '' : 'none';
-            if (show) visible++;
-        });
-        empty.style.display = visible === 0 ? 'block' : 'none';
-    }
-    searchInput.addEventListener('input', applyFilter);
-    filters.addEventListener('click', e => {
-        const btn = e.target.closest('.filter-btn');
-        if (!btn) return;
-        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        activeCat = btn.dataset.cat;
-        applyFilter();
-    });
-
-    const modalBg = document.getElementById('modalBg');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalSub = document.getElementById('modalSub');
-    const modalBody = document.getElementById('modalBody');
-    const modalClose = document.getElementById('modalClose');
-    let currentSkill = null;
-
-    function mdToHtml(md) {
-        const escape = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const blocks = [];
-        md = md.replace(/```([a-z]*)\n([\s\S]*?)```/g, (_, lang, code) => {
-            blocks.push(`<pre><code>${escape(code)}</code></pre>`);
-            return ` ${blocks.length - 1} `;
-        });
-        let html = escape(md)
-            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-            .replace(/^---$/gm, '<hr>')
-            .replace(/^&gt; (.*$)/gm, '<blockquote>$1</blockquote>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-
-        const lines = html.split('\n');
-        let out = [], inUl = false, inOl = false, para = [];
-        const flushPara = () => { if (para.length) { out.push('<p>' + para.join(' ') + '</p>'); para = []; } };
-        for (let line of lines) {
-            if (/^\s*[-*]\s+/.test(line)) {
-                flushPara();
-                if (inOl) { out.push('</ol>'); inOl = false; }
-                if (!inUl) { out.push('<ul>'); inUl = true; }
-                out.push('<li>' + line.replace(/^\s*[-*]\s+/, '') + '</li>');
-            } else if (/^\s*\d+\.\s+/.test(line)) {
-                flushPara();
-                if (inUl) { out.push('</ul>'); inUl = false; }
-                if (!inOl) { out.push('<ol>'); inOl = true; }
-                out.push('<li>' + line.replace(/^\s*\d+\.\s+/, '') + '</li>');
-            } else if (/^<(h[1-3]|hr|blockquote|pre)/.test(line)) {
-                flushPara();
-                if (inUl) { out.push('</ul>'); inUl = false; }
-                if (inOl) { out.push('</ol>'); inOl = false; }
-                out.push(line);
-            } else if (line.trim() === '') {
-                flushPara();
-                if (inUl) { out.push('</ul>'); inUl = false; }
-                if (inOl) { out.push('</ol>'); inOl = false; }
-            } else {
-                para.push(line);
-            }
-        }
-        flushPara();
-        if (inUl) out.push('</ul>');
-        if (inOl) out.push('</ol>');
-        let result = out.join('\n');
-        result = result.replace(/ (\d+) /g, (_, i) => blocks[+i]);
-        return result;
-    }
-
-    async function openSkill(slug) {
-        try {
-            const res = await fetch('?skill=' + encodeURIComponent(slug));
-            const data = await res.json();
-            currentSkill = data;
-            modalTitle.textContent = data.name;
-            modalSub.textContent = `${data.category}${data.version ? ' · v' + data.version : ''} · ${data.wordCount.toLocaleString()} palabras`;
-            modalBody.innerHTML = mdToHtml(data.body);
-            modalBg.classList.add('open');
-            document.body.style.overflow = 'hidden';
-        } catch (e) {
-            alert('No se pudo cargar la skill');
-        }
-    }
-    function closeModal() {
-        modalBg.classList.remove('open');
-        document.body.style.overflow = '';
-    }
-    cards.forEach(card => card.addEventListener('click', () => openSkill(card.dataset.slug)));
-    modalClose.addEventListener('click', closeModal);
-    modalBg.addEventListener('click', e => { if (e.target === modalBg) closeModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-    function flashCopied(btn, label) {
-        const orig = btn.innerHTML;
-        btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> ' + label;
-        btn.classList.add('copied');
-        setTimeout(() => { btn.innerHTML = orig; btn.classList.remove('copied'); }, 1800);
-    }
-
-    document.getElementById('copyPrompt').addEventListener('click', async (e) => {
-        if (!currentSkill) return;
-        const prompt = `Activa la skill "${currentSkill.name}" para mi tarea de marketing. Aquí están las instrucciones que debes seguir al pie de la letra:\n\n---\n\n${currentSkill.body}\n\n---\n\nAhora ayúdame con: [DESCRIBE AQUÍ TU TAREA]`;
-        await navigator.clipboard.writeText(prompt);
-        flashCopied(e.currentTarget, '¡Copiado!');
-    });
-    document.getElementById('copyMarkdown').addEventListener('click', async (e) => {
-        if (!currentSkill) return;
-        await navigator.clipboard.writeText(currentSkill.body);
-        flashCopied(e.currentTarget, '¡Copiado!');
-    });
-    document.getElementById('downloadBtn').addEventListener('click', () => {
-        if (!currentSkill) return;
-        const blob = new Blob([currentSkill.body], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = currentSkill.slug + '.md';
-        a.click();
-        URL.revokeObjectURL(url);
-    });
-</script>
+<script type="module" src="./assets/app-explorer.js"></script>
 </body>
 </html>

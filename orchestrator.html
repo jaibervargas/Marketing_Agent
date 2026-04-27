@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orquestador · Marketing Skills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+        --bg: #0a0a0f; --bg-elev: #12121a; --bg-card: rgba(255,255,255,0.03);
+        --border: rgba(255,255,255,0.08); --border-hover: rgba(255,255,255,0.18);
+        --text: #f5f5f7; --text-dim: #a1a1aa; --text-mute: #71717a;
+        --accent: #8b5cf6; --accent-2: #ec4899; --accent-3: #06b6d4;
+        --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+        --shadow: 0 10px 40px -10px rgba(139, 92, 246, 0.25);
+    }
+    html, body {
+        background: var(--bg); color: var(--text);
+        font-family: 'Inter', -apple-system, sans-serif; font-size: 15px; line-height: 1.6;
+        min-height: 100vh; overflow-x: hidden;
+    }
+    body::before {
+        content: ''; position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+        background:
+            radial-gradient(circle at 20% 20%, rgba(139,92,246,0.18), transparent 40%),
+            radial-gradient(circle at 80% 60%, rgba(236,72,153,0.14), transparent 40%),
+            radial-gradient(circle at 50% 90%, rgba(6,182,212,0.10), transparent 40%);
+        pointer-events: none; z-index: 0; animation: drift 30s linear infinite;
+    }
+    @keyframes drift { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-2%,-2%)} }
+    .container { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+
+    .topnav {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px 0; border-bottom: 1px solid var(--border);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+    .brand-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        box-shadow: 0 0 12px var(--accent);
+    }
+    .nav-links { display: flex; gap: 4px; align-items: center; }
+    .nav-link {
+        padding: 8px 14px; border-radius: 9px;
+        color: var(--text-dim); text-decoration: none;
+        font-size: 13px; font-weight: 500; transition: all 0.15s;
+    }
+    .nav-link:hover { background: var(--bg-card); color: var(--text); }
+    .nav-link.active {
+        background: linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.15));
+        color: var(--text); border: 1px solid rgba(139,92,246,0.3);
+    }
+    .icon-btn {
+        width: 36px; height: 36px; border-radius: 9px;
+        background: var(--bg-card); border: 1px solid var(--border);
+        color: var(--text-dim); cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center;
+        transition: all 0.15s;
+    }
+    .icon-btn:hover { color: var(--text); border-color: var(--border-hover); }
+    .icon-btn.has-key { color: var(--success); border-color: rgba(16,185,129,0.4); }
+
+    header { padding: 48px 0 32px; text-align: center; }
+    .badge {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 14px; background: rgba(139,92,246,0.12);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 999px;
+        font-size: 12px; color: #c4b5fd; font-weight: 500; margin-bottom: 20px;
+    }
+    .badge::before { content:''; width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+    h1 {
+        font-size: clamp(32px, 5vw, 52px); font-weight: 800;
+        letter-spacing: -0.03em; line-height: 1.05; margin-bottom: 14px;
+        background: linear-gradient(135deg, #fff 0%, #c4b5fd 50%, #f9a8d4 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .subtitle { font-size: 17px; color: var(--text-dim); max-width: 620px; margin: 0 auto 24px; }
+
+    .composer {
+        background: var(--bg-elev); border: 1px solid var(--border);
+        border-radius: 20px; padding: 8px;
+        box-shadow: 0 20px 60px -20px rgba(0,0,0,0.5);
+        position: relative;
+    }
+    .composer:focus-within { border-color: rgba(139,92,246,0.4); box-shadow: 0 0 0 4px rgba(139,92,246,0.12), 0 20px 60px -20px rgba(0,0,0,0.5); }
+    .composer textarea {
+        width: 100%; min-height: 120px; max-height: 280px;
+        background: transparent; border: none; resize: none;
+        padding: 18px 20px; color: var(--text);
+        font-family: inherit; font-size: 16px; line-height: 1.6;
+    }
+    .composer textarea:focus { outline: none; }
+    .composer textarea::placeholder { color: var(--text-mute); }
+    .composer-bar {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 8px 12px 8px 20px; gap: 12px; flex-wrap: wrap;
+    }
+    .composer-hint { font-size: 12px; color: var(--text-mute); display: flex; gap: 6px; align-items: center; }
+    .kbd {
+        font-family: 'JetBrains Mono', monospace; font-size: 11px;
+        padding: 2px 6px; background: var(--bg); border: 1px solid var(--border);
+        border-radius: 5px; color: var(--text-dim);
+    }
+    .btn {
+        padding: 10px 18px; background: var(--bg-card);
+        border: 1px solid var(--border); border-radius: 10px;
+        color: var(--text); font-family: inherit; font-size: 14px; font-weight: 500;
+        cursor: pointer; transition: all 0.15s;
+        display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn:hover:not(:disabled) { border-color: var(--border-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        border-color: transparent; color: white;
+    }
+    .btn-primary:hover:not(:disabled) { box-shadow: var(--shadow); transform: translateY(-1px); }
+    .btn-success { background: var(--success); border-color: var(--success); color: white; }
+    .btn-ghost { background: transparent; }
+
+    .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; justify-content: center; }
+    .example-chip {
+        padding: 6px 12px; background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 999px; font-size: 12px; color: var(--text-dim);
+        cursor: pointer; transition: all 0.15s;
+    }
+    .example-chip:hover { color: var(--text); border-color: rgba(139,92,246,0.4); background: rgba(139,92,246,0.08); }
+
+    .stage { padding: 40px 0 80px; }
+    .step {
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 16px; padding: 24px; margin-bottom: 20px;
+        backdrop-filter: blur(10px);
+        animation: fadeUp 0.4s cubic-bezier(0.4,0,0.2,1);
+    }
+    @keyframes fadeUp { from{opacity:0; transform:translateY(12px);} to{opacity:1; transform:translateY(0);} }
+    .step-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .step-num {
+        width: 28px; height: 28px; border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 13px; color: white;
+        box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+    }
+    .step-title { font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+    .step-sub { font-size: 13px; color: var(--text-mute); margin-left: auto; }
+
+    .skill-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .skill-pick {
+        background: var(--bg-elev); border: 1px solid var(--border);
+        border-radius: 12px; padding: 14px; cursor: pointer;
+        transition: all 0.15s; position: relative;
+    }
+    .skill-pick:hover { border-color: var(--border-hover); }
+    .skill-pick.selected {
+        border-color: var(--accent); background: rgba(139,92,246,0.08);
+        box-shadow: 0 0 0 1px var(--accent);
+    }
+    .skill-pick-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+    .skill-pick-name { font-size: 14px; font-weight: 600; }
+    .skill-pick-cat {
+        font-size: 10px; font-weight: 600; padding: 3px 7px; border-radius: 5px;
+        text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
+    }
+    .cat-CRO{background:rgba(139,92,246,0.15);color:#c4b5fd}.cat-Content{background:rgba(236,72,153,0.15);color:#f9a8d4}
+    .cat-SEO{background:rgba(6,182,212,0.15);color:#67e8f9}.cat-Paid{background:rgba(245,158,11,0.15);color:#fcd34d}
+    .cat-Measurement{background:rgba(16,185,129,0.15);color:#6ee7b7}.cat-Retention{background:rgba(239,68,68,0.15);color:#fca5a5}
+    .cat-Growth{background:rgba(34,197,94,0.15);color:#86efac}.cat-Sales{background:rgba(99,102,241,0.15);color:#a5b4fc}
+    .cat-Strategy{background:rgba(168,85,247,0.15);color:#d8b4fe}.cat-Other{background:rgba(161,161,170,0.15);color:#d4d4d8}
+    .skill-pick-desc {
+        font-size: 12px; color: var(--text-dim); line-height: 1.5;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .skill-pick-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+    .skill-pick-score {
+        font-size: 10px; font-family: 'JetBrains Mono', monospace;
+        color: var(--text-mute); padding: 2px 6px; background: var(--bg);
+        border-radius: 4px; border: 1px solid var(--border);
+    }
+    .check {
+        width: 18px; height: 18px; border-radius: 6px;
+        border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center;
+        flex-shrink: 0; transition: all 0.15s;
+    }
+    .skill-pick.selected .check { background: var(--accent); border-color: var(--accent); }
+    .skill-pick.selected .check svg { opacity: 1; }
+    .check svg { opacity: 0; color: white; transition: opacity 0.15s; }
+
+    .actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+
+    .prompt-preview {
+        background: #06060b; border: 1px solid var(--border); border-radius: 10px;
+        padding: 16px; max-height: 320px; overflow: auto;
+        font-family: 'JetBrains Mono', monospace; font-size: 12px;
+        color: var(--text-dim); white-space: pre-wrap; line-height: 1.55;
+    }
+    .prompt-preview::-webkit-scrollbar { width: 6px; }
+    .prompt-preview::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .output {
+        background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+        padding: 20px; min-height: 80px;
+        font-size: 14px; line-height: 1.7;
+    }
+    .output h1, .output h2, .output h3 { margin: 18px 0 10px; letter-spacing: -0.01em; }
+    .output h1 { font-size: 20px; } .output h2 { font-size: 17px; color: #c4b5fd; } .output h3 { font-size: 14px; }
+    .output p { margin-bottom: 12px; color: var(--text-dim); }
+    .output ul, .output ol { margin: 10px 0 10px 22px; color: var(--text-dim); }
+    .output li { margin-bottom: 4px; }
+    .output code { background: var(--bg); padding: 2px 5px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #f9a8d4; border: 1px solid var(--border); }
+    .output pre { background: var(--bg); padding: 12px; border-radius: 8px; overflow-x: auto; margin: 12px 0; border: 1px solid var(--border); }
+    .output pre code { background: none; border: none; padding: 0; color: var(--text); }
+    .output strong { color: var(--text); }
+    .output hr { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .output blockquote { border-left: 3px solid var(--accent); padding-left: 14px; margin: 12px 0; color: var(--text-dim); font-style: italic; }
+
+    .spinner {
+        display: inline-block; width: 14px; height: 14px;
+        border: 2px solid currentColor; border-right-color: transparent;
+        border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pulse { animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .empty-skills { text-align: center; padding: 32px; color: var(--text-mute); font-size: 14px; }
+
+    /* Modal */
+    .modal-bg {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(8px); z-index: 100;
+        display: none; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-bg.open { display: flex; }
+    .modal {
+        background: var(--bg-elev); border: 1px solid var(--border);
+        border-radius: 16px; max-width: 520px; width: 100%;
+        padding: 28px;
+        box-shadow: 0 40px 80px -20px rgba(0,0,0,0.6);
+        animation: fadeUp 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+    .modal h3 { font-size: 20px; margin-bottom: 8px; }
+    .modal p { font-size: 13px; color: var(--text-dim); margin-bottom: 18px; }
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .field input, .field select {
+        width: 100%; height: 42px; padding: 0 14px;
+        background: var(--bg); border: 1px solid var(--border); border-radius: 9px;
+        color: var(--text); font-family: inherit; font-size: 14px;
+    }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--accent); }
+    .field-hint { font-size: 11px; color: var(--text-mute); margin-top: 6px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+    .toast {
+        position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+        background: var(--success); color: white; padding: 12px 20px;
+        border-radius: 10px; font-size: 14px; font-weight: 500;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+        z-index: 200; animation: fadeUp 0.25s;
+    }
+    .toast.error { background: var(--danger); }
+
+    /* History drawer */
+    .drawer-bg {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        backdrop-filter: blur(4px); z-index: 90;
+        opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    }
+    .drawer-bg.open { opacity: 1; pointer-events: auto; }
+    .drawer {
+        position: fixed; top: 0; right: 0; bottom: 0;
+        width: 380px; max-width: 100vw;
+        background: var(--bg-elev); border-left: 1px solid var(--border);
+        z-index: 91; transform: translateX(100%);
+        transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+        display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    .drawer-head {
+        padding: 20px 22px; border-bottom: 1px solid var(--border);
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .drawer-head h3 { font-size: 16px; font-weight: 700; }
+    .drawer-list { flex: 1; overflow-y: auto; padding: 12px; }
+    .drawer-list::-webkit-scrollbar { width: 6px; }
+    .drawer-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    .hist-item {
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+        cursor: pointer; transition: all 0.15s;
+        position: relative;
+    }
+    .hist-item:hover { border-color: var(--border-hover); background: rgba(255,255,255,0.04); }
+    .hist-task {
+        font-size: 13px; color: var(--text); line-height: 1.4;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        margin-bottom: 8px;
+    }
+    .hist-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .hist-time { font-size: 11px; color: var(--text-mute); font-family: 'JetBrains Mono', monospace; }
+    .hist-skills { font-size: 10px; color: var(--text-dim); }
+    .hist-del {
+        position: absolute; top: 8px; right: 8px;
+        width: 22px; height: 22px; border-radius: 6px;
+        background: transparent; border: none; cursor: pointer;
+        color: var(--text-mute); opacity: 0;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.15s;
+    }
+    .hist-item:hover .hist-del { opacity: 1; }
+    .hist-del:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .drawer-empty { padding: 60px 20px; text-align: center; color: var(--text-mute); font-size: 13px; }
+
+    .btn-auto {
+        background: linear-gradient(135deg, var(--accent-3), var(--accent));
+        border-color: transparent; color: white;
+    }
+    .btn-auto:hover:not(:disabled) { box-shadow: 0 10px 30px -10px rgba(6,182,212,0.5); transform: translateY(-1px); }
+
+    .ctx-toggle {
+        display: inline-flex; align-items: center; gap: 8px;
+        margin: 14px auto 0; padding: 8px 14px;
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 9px; color: var(--text-dim);
+        font-family: inherit; font-size: 13px; font-weight: 500;
+        cursor: pointer; transition: all 0.15s;
+    }
+    .ctx-toggle:hover { border-color: var(--border-hover); color: var(--text); }
+    .ctx-toggle .badge-count {
+        font-size: 11px; padding: 2px 7px; border-radius: 999px;
+        background: var(--accent); color: white; font-weight: 600;
+    }
+    .ctx-panel {
+        margin-top: 12px; padding: 18px;
+        background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: 14px;
+        display: none;
+        animation: fadeUp 0.25s;
+    }
+    .ctx-panel.open { display: block; }
+    .ctx-row { margin-bottom: 14px; }
+    .ctx-label {
+        font-size: 11px; font-weight: 600; color: var(--text-dim);
+        text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+        display: flex; align-items: center; gap: 6px;
+    }
+    .ctx-label svg { color: var(--text-mute); }
+    .ctx-input, .ctx-textarea {
+        width: 100%; background: var(--bg); border: 1px solid var(--border);
+        border-radius: 9px; padding: 10px 14px;
+        color: var(--text); font-family: inherit; font-size: 14px;
+        transition: border-color 0.15s;
+    }
+    .ctx-input { height: 40px; }
+    .ctx-textarea { min-height: 90px; max-height: 200px; resize: vertical; line-height: 1.55; }
+    .ctx-input:focus, .ctx-textarea:focus { outline: none; border-color: var(--accent); }
+    .ctx-input::placeholder, .ctx-textarea::placeholder { color: var(--text-mute); }
+    .ctx-drop {
+        border: 1.5px dashed var(--border); border-radius: 10px;
+        padding: 18px; text-align: center; cursor: pointer;
+        transition: all 0.15s;
+        font-size: 13px; color: var(--text-mute);
+    }
+    .ctx-drop:hover, .ctx-drop.dragover {
+        border-color: var(--accent); background: rgba(139,92,246,0.04);
+        color: var(--text-dim);
+    }
+    .ctx-drop strong { color: var(--text); display: block; margin-bottom: 4px; font-weight: 600; }
+    .ctx-files { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .ctx-file {
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 6px 8px 6px 12px;
+        background: var(--bg); border: 1px solid var(--border);
+        border-radius: 8px; font-size: 12px;
+        max-width: 100%;
+    }
+    .ctx-file .fname { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+    .ctx-file .fsize { color: var(--text-mute); font-size: 11px; }
+    .ctx-file .fkind {
+        font-size: 10px; padding: 2px 6px; border-radius: 4px;
+        background: rgba(139,92,246,0.15); color: #c4b5fd; font-weight: 600;
+        text-transform: uppercase;
+    }
+    .ctx-file .fkind.img { background: rgba(236,72,153,0.15); color: #f9a8d4; }
+    .ctx-file .frem {
+        background: transparent; border: none; cursor: pointer;
+        color: var(--text-mute); padding: 4px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 4px;
+    }
+    .ctx-file .frem:hover { background: rgba(239,68,68,0.15); color: #fca5a5; }
+    .ctx-thumb {
+        width: 32px; height: 32px; border-radius: 5px;
+        object-fit: cover; flex-shrink: 0;
+    }
+
+    .stream-cursor {
+        display: inline-block; width: 8px; height: 16px;
+        background: var(--accent); margin-left: 2px; vertical-align: text-bottom;
+        animation: blink 1s step-end infinite;
+    }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    @media (max-width: 640px) {
+        .container { padding: 0 18px; }
+        header { padding: 28px 0 20px; }
+        .skill-grid { grid-template-columns: 1fr; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <nav class="topnav">
+        <div class="brand">
+            <span class="brand-dot"></span>
+            <span>Marketing Skills</span>
+        </div>
+        <div class="nav-links">
+            <a href="orchestrator.html" class="nav-link active">Orquestador</a>
+            <a href="index.html" class="nav-link">Explorar skills</a>
+            <button class="icon-btn" id="clearBtn" title="Nueva consulta (limpiar todo)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <button class="icon-btn" id="historyBtn" title="Historial">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+            </button>
+            <button class="icon-btn" id="settingsBtn" title="Configurar API key">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+        </div>
+    </nav>
+
+    <header>
+        <span class="badge">Orquestador IA</span>
+        <h1>Describe lo que quieres,<br>te lo orquesto.</h1>
+        <p class="subtitle">El orquestador analiza tu tarea, elige las skills correctas, arma un plan y te entrega el resultado listo para usar.</p>
+    </header>
+
+    <div class="composer">
+        <textarea id="taskInput" placeholder="Ej: Quiero rediseñar la home de mi SaaS de facturación electrónica para que convierta más, además necesito copy nuevo, una secuencia de bienvenida y mejorar el SEO técnico de la página."></textarea>
+        <div class="composer-bar">
+            <div class="composer-hint">
+                <span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> para analizar
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn" id="analyzeBtn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.582a.5.5 0 0 1 0 .962L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/></svg>
+                    Analizar
+                </button>
+                <button class="btn btn-auto" id="autoBtn" title="Detecta skills, arma prompt y ejecuta — todo en un click">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    Auto-ejecutar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align:center">
+        <button class="ctx-toggle" id="ctxToggle" type="button">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <span>Adjuntar contexto (URL, copy, capturas)</span>
+            <span class="badge-count" id="ctxCount" style="display:none">0</span>
+        </button>
+    </div>
+
+    <div class="ctx-panel" id="ctxPanel">
+        <div class="ctx-row">
+            <div class="ctx-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                URL del asset
+            </div>
+            <input type="url" class="ctx-input" id="ctxUrl" placeholder="https://tusitio.com/landing">
+        </div>
+        <div class="ctx-row">
+            <div class="ctx-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Copy actual / brief de marca / KPIs
+            </div>
+            <textarea class="ctx-textarea" id="ctxText" placeholder="Pega aquí el copy actual de la página, tu propuesta de valor, métricas, brief, lo que sea relevante..."></textarea>
+        </div>
+        <div class="ctx-row" style="margin-bottom:0">
+            <div class="ctx-label">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                Imágenes y archivos
+            </div>
+            <div class="ctx-drop" id="ctxDrop">
+                <strong>Arrastra capturas, fotos o archivos aquí</strong>
+                <span style="display:block;margin-top:4px">📸 Imágenes (JPG, PNG, WebP, GIF) hasta 5 MB &nbsp;·&nbsp; 📄 Texto (.txt .md .csv .json .html) hasta 60 KB</span>
+                <span style="display:block;margin-top:4px;font-size:11px">También puedes pegar capturas directo en el campo de tarea con Ctrl+V · máximo 6 archivos</span>
+            </div>
+            <input type="file" id="ctxFileInput" multiple accept=".txt,.md,.csv,.json,.html,.log,.xml,image/*" style="display:none">
+            <div class="ctx-files" id="ctxFiles"></div>
+        </div>
+    </div>
+
+    <div class="examples">
+        <span class="example-chip" data-ex="Mi landing page de un SaaS B2B no convierte. Tengo 5% de CR y quiero llegar al 10%. Audita el copy y dame recomendaciones priorizadas.">Auditar landing B2B</span>
+        <span class="example-chip" data-ex="Necesito una secuencia de bienvenida de 5 emails para usuarios que se registran al trial de mi app de productividad.">Secuencia de onboarding</span>
+        <span class="example-chip" data-ex="Quiero lanzar campañas en Google Ads y Meta para mi nuevo plan Pro. Dame estrategia, copy de anuncios y plan de medición.">Plan paid + creatives</span>
+        <span class="example-chip" data-ex="Mi competencia me está ganando en SEO. Necesito un audit técnico, plan de contenido y páginas de comparación vs ellos.">SEO + competencia</span>
+    </div>
+
+    <div class="stage" id="stage"></div>
+</div>
+
+<div class="drawer-bg" id="drawerBg"></div>
+<div class="drawer" id="historyDrawer">
+    <div class="drawer-head">
+        <h3>Historial</h3>
+        <div style="display:flex;gap:6px">
+            <button class="icon-btn" id="clearHistoryBtn" title="Borrar todo">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+            <button class="icon-btn" id="closeDrawerBtn" title="Cerrar">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+    </div>
+    <div class="drawer-list" id="historyList"></div>
+</div>
+
+<div class="modal-bg" id="settingsModal">
+    <div class="modal">
+        <h3>Configurar proveedor de IA</h3>
+        <p>Elige tu proveedor y pega tu API key. Cada key se guarda en tu navegador (localStorage). Las requests van directo del navegador al proveedor — ningún servidor intermedio.</p>
+        <div class="field">
+            <label>Proveedor</label>
+            <select id="providerSelect"></select>
+        </div>
+        <div class="field" id="customUrlField" style="display:none">
+            <label>Endpoint URL (compatible OpenAI)</label>
+            <input type="text" id="customUrl" placeholder="http://localhost:11434/v1/chat/completions">
+            <div class="field-hint">Ej: Ollama, LocalAI, vLLM, LM Studio. Asegúrate de habilitar CORS en tu servidor local.</div>
+        </div>
+        <div class="field">
+            <label>API Key <span id="keyHelpLink" style="float:right;font-weight:400;text-transform:none;letter-spacing:0"></span></label>
+            <input type="password" id="apiKey" placeholder="sk-...">
+            <div class="field-hint" id="keyHint">Tu key se guarda solo en tu navegador.</div>
+        </div>
+        <div class="field">
+            <label>Modelo</label>
+            <select id="modelSelect"></select>
+            <input type="text" id="customModel" placeholder="ID del modelo (ej: llama3.1)" style="display:none;margin-top:6px">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" id="clearKeyBtn">Borrar key</button>
+            <button class="btn btn-ghost" id="cancelSettingsBtn">Cancelar</button>
+            <button class="btn btn-primary" id="saveSettingsBtn">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="./assets/app-orchestrator.js"></script>
+</body>
+</html>
