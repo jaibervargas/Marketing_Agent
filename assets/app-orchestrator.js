@@ -5,7 +5,8 @@ import { IMAGE_PROVIDERS } from './image-providers.js';
 import { buildPrompt as buildPromptModule } from './prompt-builder.js';
 import { smartMatch, runStream } from './llm-client.js';
 import { generateImage, makeThumbnail } from './image-client.js';
-import { getHistory, setHistory, saveToHistory, deleteFromHistory, clearHistory, fmtTime } from './history.js';
+import { getHistory, setHistory, saveToHistory, deleteFromHistory, clearHistory, fmtTime, isCloudMode } from './history.js';
+import { isSupabaseConfigured, setSupabaseConfig, signUp, signIn, signOut, onAuthStateChange, getCurrentUser, checkSubscription, checkAndIncrementUsage } from './supabase-client.js';
 
 const taskInput = document.getElementById('taskInput');
 const analyzeBtn = document.getElementById('analyzeBtn');
@@ -325,7 +326,26 @@ async function runWithClaude() {
     openSettings();
     return;
   }
+  
   const cfg = getActiveConfig();
+  
+  if (isSupabaseConfigured()) {
+    const user = await getCurrentUser();
+    if (user) {
+      const usage = await checkAndIncrementUsage(user.id);
+      if (!usage.allowed) {
+        if (usage.reason === 'pending_validation') {
+          toast('Tu cuenta aún no ha sido validada por un administrador', 'error');
+          return;
+        }
+        if (usage.reason === 'limit_exceeded') {
+          toast(`Límite de peticiones alcanzado (${usage.limit}/día). Upgrade a Pro para más requests.`, 'error');
+          return;
+        }
+      }
+    }
+  }
+  
   const provName = PROVIDERS[cfg.provider]?.name || cfg.provider;
   const resultStep = document.getElementById('resultStep');
   const output = document.getElementById('resultOutput');
@@ -548,6 +568,24 @@ async function runImageGeneration() {
     openSettings();
     return;
   }
+  
+  if (isSupabaseConfigured()) {
+    const user = await getCurrentUser();
+    if (user) {
+      const usage = await checkAndIncrementUsage(user.id);
+      if (!usage.allowed) {
+        if (usage.reason === 'pending_validation') {
+          toast('Tu cuenta aún no ha sido validada por un administrador', 'error');
+          return;
+        }
+        if (usage.reason === 'limit_exceeded') {
+          toast(`Límite de peticiones alcanzado (${usage.limit}/día). Upgrade a Pro para más requests.`, 'error');
+          return;
+        }
+      }
+    }
+  }
+  
   const cfg = getImageConfig();
   const prov = IMAGE_PROVIDERS[cfg.provider];
   const provName = prov?.name || cfg.provider;
@@ -1058,6 +1096,196 @@ document.getElementById('clearKeyBtn').addEventListener('click', () => {
   refreshKeyState();
 });
 
+/* Supabase Cloud */
+const supabaseUrlInput = document.getElementById('supabaseUrl');
+const supabaseKeyInput = document.getElementById('supabaseKey');
+const authSection = document.getElementById('authSection');
+const authEmailInput = document.getElementById('authEmail');
+const authPasswordInput = document.getElementById('authPassword');
+const authNameInput = document.getElementById('authName');
+const authNameField = document.getElementById('authNameField');
+const signInBtn = document.getElementById('signInBtn');
+const signUpBtn = document.getElementById('signUpBtn');
+const signOutBtn = document.getElementById('signOutBtn');
+const cloudStatus = document.getElementById('cloudStatus');
+
+let authFlow = 'signin';
+
+function updateCloudUI() {
+  const configured = isSupabaseConfigured();
+  const urlField = document.getElementById('supabaseUrl');
+  const keyField = document.getElementById('supabaseKey');
+  if (configured) {
+    urlField.value = localStorage.getItem('supabase_url') || '';
+    keyField.value = localStorage.getItem('supabase_anon') || '';
+  }
+  authSection.style.display = configured ? '' : 'none';
+  cloudStatus.textContent = configured ? '' : 'Configura Project URL y Anon Key primero';
+}
+
+function updateAuthUI(user) {
+  if (user) {
+    authSection.style.display = '';
+    signInBtn.style.display = 'none';
+    signUpBtn.style.display = 'none';
+    signOutBtn.style.display = '';
+    cloudStatus.textContent = `Conectado como ${user.email}`;
+    renderHistory();
+  } else {
+    signInBtn.style.display = '';
+    signOutBtn.style.display = 'none';
+    authNameField.style.display = authFlow === 'signup' ? '' : 'none';
+    cloudStatus.textContent = authFlow === 'signup'
+      ? 'Crea una cuenta para guardar historial en la nube'
+      : 'Inicia sesión para sincronizar tu historial';
+  }
+}
+
+async function handleSupabaseSave() {
+  const url = supabaseUrlInput.value.trim();
+  const key = supabaseKeyInput.value.trim();
+  if (!url || !key) {
+    toast('Faltan Project URL y/o Anon Key', 'error');
+    return;
+  }
+  setSupabaseConfig(url, key);
+}
+
+async function handleAuth() {
+  const email = authEmailInput.value.trim();
+  const password = authPasswordInput.value;
+  if (!email || !password) { toast('Falta email o password', 'error'); return; }
+  try {
+    if (authFlow === 'signup') {
+      await signUp(email, password);
+      toast('Revisa tu email para confirmar');
+    } else {
+      await signIn(email, password);
+      toast('Sesión iniciada');
+    }
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function initSupabase() {
+  updateCloudUI();
+  onAuthStateChange((event, user) => {
+    updateAuthUI(user);
+  });
+  getCurrentUser().then(user => {
+    updateAuthUI(user);
+  });
+}
+
+document.getElementById('saveSupabaseBtn').addEventListener('click', handleSupabaseSave);
+document.getElementById('clearSupabaseBtn').addEventListener('click', () => {
+  localStorage.removeItem('supabase_url');
+  localStorage.removeItem('supabase_anon');
+  initSupabase();
+  supabaseUrlInput.value = '';
+  supabaseKeyInput.value = '';
+  authSection.style.display = 'none';
+  cloudStatus.textContent = 'Configuración borrada';
+  toast('Supabase configuracion borrada');
+});
+supabaseUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleSupabaseSave(); });
+supabaseKeyInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleSupabaseSave(); });
+signInBtn.addEventListener('click', () => { authFlow = 'signin'; handleAuth(); });
+signUpBtn.addEventListener('click', () => { authFlow = 'signup'; handleAuth(); });
+signOutBtn.addEventListener('click', async () => { await signOut(); toast('Sesión cerrada'); });
+authEmailInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+authPasswordInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+
+initSupabase();
+
+/* User Modal (navbar login) */
+const userBtn = document.getElementById('userBtn');
+const userModal = document.getElementById('userModal');
+const userNotLogged = document.getElementById('userNotLogged');
+const userLogged = document.getElementById('userLogged');
+const userEmail = document.getElementById('userEmail');
+const navAuthEmail = document.getElementById('navAuthEmail');
+const navAuthPassword = document.getElementById('navAuthPassword');
+const navAuthStatus = document.getElementById('navAuthStatus');
+const navSignInBtn = document.getElementById('navSignInBtn');
+const navSignUpBtn = document.getElementById('navSignUpBtn');
+const navSignOutBtn = document.getElementById('navSignOutBtn');
+
+let navAuthFlow = 'signin';
+
+function updateUserModal(user) {
+  if (user) {
+    userNotLogged.style.display = 'none';
+    userLogged.style.display = '';
+    userEmail.textContent = user.email;
+  } else {
+    userNotLogged.style.display = '';
+    userLogged.style.display = 'none';
+  }
+}
+
+async function handleNavAuth() {
+  const email = navAuthEmail.value.trim();
+  const password = navAuthPassword.value;
+  if (!email || !password) { toast('Falta email o password', 'error'); return; }
+  try {
+    if (navAuthFlow === 'signup') {
+      await signUp(email, password);
+      toast('Revisa tu email para confirmar');
+    } else {
+      await signIn(email, password);
+      toast('Sesión iniciada');
+      userModal.classList.remove('open');
+      // Wait for session to be ready and update UI
+      setTimeout(() => {
+        getCurrentUser().then(user => updateUserModal(user));
+      }, 500);
+    }
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+userBtn.addEventListener('click', () => {
+  if (!isSupabaseConfigured()) {
+    toast('Configura Supabase primero en Settings > Nube', 'error');
+    return;
+  }
+  userModal.classList.add('open');
+});
+
+const adminBtn = document.getElementById('adminBtn');
+if (adminBtn) {
+  adminBtn.addEventListener('click', async () => {
+    if (!isSupabaseConfigured()) {
+      toast('Configura Supabase primero en Settings > Nube', 'error');
+      return;
+    }
+    const user = await getCurrentUser();
+    if (!user) {
+      window.location.href = 'login.html';
+      return;
+    }
+    const sub = await checkSubscription(user.id);
+    if (sub.role !== 'admin') {
+      toast('Solo administradores pueden acceder al panel de admin', 'error');
+      return;
+    }
+    window.location.href = 'admin.html';
+  });
+}
+
+userModal.addEventListener('click', e => { if (e.target === userModal) userModal.classList.remove('open'); });
+navSignInBtn.addEventListener('click', () => { navAuthFlow = 'signin'; handleNavAuth(); });
+navSignUpBtn.addEventListener('click', () => { navAuthFlow = 'signup'; handleNavAuth(); });
+navSignOutBtn.addEventListener('click', async () => { await signOut(); toast('Sesión cerrada'); });
+navAuthEmail.addEventListener('keydown', e => { if (e.key === 'Enter') handleNavAuth(); });
+navAuthPassword.addEventListener('keydown', e => { if (e.key === 'Enter') handleNavAuth(); });
+
+onAuthStateChange((event, user) => updateUserModal(user));
+getCurrentUser().then(user => updateUserModal(user));
+
 (function migrate() {
   const old = localStorage.getItem('anthropic_api_key');
   if (old && !localStorage.getItem('llm_apikey_anthropic')) {
@@ -1073,6 +1301,7 @@ settingsModal.addEventListener('click', e => { if (e.target === settingsModal) s
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     settingsModal.classList.remove('open');
+    userModal.classList.remove('open');
     closeDrawer();
   }
 });
@@ -1118,32 +1347,33 @@ const historyDrawer = document.getElementById('historyDrawer');
 const historyList = document.getElementById('historyList');
 
 function renderHistory() {
-  const arr = getHistory();
-  if (arr.length === 0) {
-    historyList.innerHTML = '<div class="drawer-empty">Aún no hay historial. Las tareas que ejecutes aparecerán aquí.</div>';
-    return;
-  }
-  historyList.innerHTML = arr.map(h => {
-    const isImage = h.kind === 'image';
-    const meta = isImage
-      ? `<span class="hist-skills">🖼 imagen · ${escapeHtml(h.model || '')}</span>`
-      : `<span class="hist-skills">${(h.slugs || []).length} skills · ${escapeHtml(h.model || '')}</span>`;
-    const thumb = isImage && h.thumbnail
-      ? `<img src="${h.thumbnail}" alt="" style="width:100%;border-radius:6px;margin-bottom:8px;display:block">`
-      : '';
-    return `
-      <div class="hist-item" data-id="${h.id}">
-        <button class="hist-del" data-del="${h.id}" title="Borrar">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-        </button>
-        ${thumb}
-        <div class="hist-task">${escapeHtml(h.task)}</div>
-        <div class="hist-meta">
-          <span class="hist-time">${fmtTime(h.ts)}</span>
-          ${meta}
-        </div>
-      </div>`;
-  }).join('');
+  getHistory().then(arr => {
+    if (arr.length === 0) {
+      historyList.innerHTML = '<div class="drawer-empty">Aún no hay historial. Las tareas que ejecutes aparecerán aquí.</div>';
+      return;
+    }
+    historyList.innerHTML = arr.map(h => {
+      const isImage = h.kind === 'image';
+      const meta = isImage
+        ? `<span class="hist-skills">🖼 imagen · ${escapeHtml(h.model || '')}</span>`
+        : `<span class="hist-skills">${(h.slugs || []).length} skills · ${escapeHtml(h.model || '')}</span>`;
+      const thumb = isImage && h.thumbnail
+        ? `<img src="${h.thumbnail}" alt="" style="width:100%;border-radius:6px;margin-bottom:8px;display:block">`
+        : '';
+      return `
+        <div class="hist-item" data-id="${h.id}">
+          <button class="hist-del" data-del="${h.id}" title="Borrar">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
+          ${thumb}
+          <div class="hist-task">${escapeHtml(h.task)}</div>
+          <div class="hist-meta">
+            <span class="hist-time">${fmtTime(h.ts)}</span>
+            ${meta}
+          </div>
+        </div>`;
+    }).join('');
+  });
 }
 function openDrawer() {
   renderHistory();
@@ -1157,9 +1387,9 @@ function closeDrawer() {
 historyBtn.addEventListener('click', openDrawer);
 drawerBg.addEventListener('click', closeDrawer);
 document.getElementById('closeDrawerBtn').addEventListener('click', closeDrawer);
-document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+document.getElementById('clearHistoryBtn').addEventListener('click', async () => {
   if (!confirm('¿Borrar todo el historial?')) return;
-  clearHistory();
+  await clearHistory();
   renderHistory();
   toast('Historial borrado');
 });
@@ -1167,8 +1397,7 @@ historyList.addEventListener('click', e => {
   const delBtn = e.target.closest('[data-del]');
   if (delBtn) {
     e.stopPropagation();
-    deleteFromHistory(delBtn.dataset.del);
-    renderHistory();
+    deleteFromHistory(delBtn.dataset.del).then(() => renderHistory());
     return;
   }
   const item = e.target.closest('.hist-item');

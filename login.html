@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marketing Agent - Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b;
+      --bg-2: #18181b;
+      --bg-3: #27272a;
+      --text: #fafafa;
+      --text-2: #a1a1aa;
+      --text-mute: #71717a;
+      --accent: #8b5cf6;
+      --accent-2: #a78bfa;
+      --accent-3: #06b6d4;
+      --border: #3f3f46;
+      --error: #ef4444;
+      --success: #22c55e;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-container {
+      width: 100%;
+      max-width: 400px;
+      padding: 24px;
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo h1 {
+      font-size: 28px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .logo p {
+      color: var(--text-2);
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .tabs {
+      display: flex;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      flex: 1;
+      padding: 12px;
+      background: transparent;
+      border: none;
+      color: var(--text-2);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .tab.active {
+      color: var(--accent);
+      border-bottom: 2px solid var(--accent);
+      margin-bottom: -1px;
+    }
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 13px;
+      color: var(--text-2);
+      margin-bottom: 6px;
+    }
+    .field input {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover {
+      opacity: 0.9;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--bg-3);
+      color: var(--text);
+      margin-top: 12px;
+    }
+    .error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .error.show {
+      display: block;
+    }
+    .status {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: var(--text-2);
+    }
+    .status.pending {
+      color: #f59e0b;
+    }
+    .nav-links {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 24px;
+    }
+    .nav-links a {
+      color: var(--text-2);
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .nav-links a:hover {
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo">
+      <h1>Marketing Agent</h1>
+      <p>Orquestador de Marketing con IA</p>
+    </div>
+    
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="signin">Iniciar sesión</button>
+        <button class="tab" data-tab="signup">Registrarse</button>
+      </div>
+      
+      <div class="error" id="error"></div>
+      
+      <div class="tab-content active" data-panel="signin">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="email" placeholder="tu@email.com">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="password" placeholder="••••••••">
+        </div>
+        <button class="btn" id="signInBtn">Iniciar sesión</button>
+      </div>
+      
+      <div class="tab-content" data-panel="signup" style="display:none">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="regEmail" placeholder="tu@email.com">
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" id="regPassword" placeholder="••••••••">
+        </div>
+        <button class="btn" id="signUpBtn">Registrarse</button>
+      </div>
+      
+      <div class="status" id="status"></div>
+    </div>
+    
+    <div class="nav-links">
+      <a href="orchestrator.html">Ir al Orquestador</a>
+      <a href="admin.html">Admin</a>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { signIn, signUp, getCurrentUser, isSupabaseConfigured, createProfileIfNotExists, checkSubscription } from './assets/supabase-client.js';
+    
+    const error = document.getElementById('error');
+    const status = document.getElementById('status');
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.tab-content');
+    let mode = 'signin';
+    
+    tabs.forEach(t => t.addEventListener('click', () => {
+      mode = t.dataset.tab;
+      tabs.forEach(x => x.classList.toggle('active', x === t));
+      panels.forEach(p => p.style.display = p.dataset.panel === mode ? 'block' : 'none');
+      error.classList.remove('show');
+      status.textContent = '';
+    }));
+    
+    async function handleAuth() {
+      const email = mode === 'signin' 
+        ? document.getElementById('email').value.trim() 
+        : document.getElementById('regEmail').value.trim();
+      const password = mode === 'signin'
+        ? document.getElementById('password').value.value
+        : document.getElementById('regPassword').value;
+      
+      if (!email || !password) {
+        error.textContent = 'Falta email o password';
+        error.classList.add('show');
+        return;
+      }
+      
+      if (!isSupabaseConfigured()) {
+        error.textContent = 'Supabase no configurado. Ve a Settings > Nube';
+        error.classList.add('show');
+        return;
+      }
+      
+      status.textContent = mode === 'signin' ? 'Iniciando sesión...' : 'Registrando...';
+      
+      try {
+        if (mode === 'signup') {
+          await signUp(email, password);
+          status.textContent = 'Revisa tu email para confirmar';
+          status.className = 'status pending';
+        } else {
+          await signIn(email, password);
+          const user = await getCurrentUser();
+          await createProfileIfNotExists(user.id, user.email);
+          checkSubscription(user.id).then(sub => {
+            if (!sub.is_validated) {
+              status.textContent = 'Esperando validación de admin...';
+              status.className = 'status pending';
+            } else if (sub.role === 'admin') {
+              window.location.href = 'admin.html';
+            } else {
+              window.location.href = 'orchestrator.html';
+            }
+          });
+        }
+      } catch (e) {
+        error.textContent = e.message;
+        error.classList.add('show');
+        status.textContent = '';
+      }
+    }
+    
+    document.getElementById('signInBtn').addEventListener('click', handleAuth);
+    document.getElementById('signUpBtn').addEventListener('click', handleAuth);
+    
+    document.getElementById('email').addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+    document.getElementById('password').addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+    document.getElementById('regEmail').addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+    document.getElementById('regPassword').addEventListener('keydown', e => { if (e.key === 'Enter') handleAuth(); });
+  </script>
+</body>
+</html>

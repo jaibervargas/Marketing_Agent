@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marketing Agent - Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b;
+      --bg-2: #18181b;
+      --bg-3: #27272a;
+      --text: #fafafa;
+      --text-2: #a1a1aa;
+      --text-mute: #71717a;
+      --accent: #8b5cf6;
+      --accent-2: #a78bfa;
+      --accent-3: #06b6d4;
+      --border: #3f3f46;
+      --error: #ef4444;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .header h1 {
+      font-size: 24px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .user-info button {
+      padding: 8px 16px;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 768px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: var(--text-2);
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .stat {
+      background: var(--bg-3);
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-mute);
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .table th, .table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .table th {
+      color: var(--text-mute);
+      font-weight: 500;
+    }
+    .table tr:hover td {
+      background: var(--bg-3);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-admin { background: rgba(139, 92, 246, 0.2); color: var(--accent); }
+    .badge-user { background: rgba(161, 161, 170, 0.2); color: var(--text-2); }
+    .badge-active { background: rgba(34, 197, 94, 0.2); color: var(--success); }
+    .badge-pending { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+    .badge-free { background: rgba(161, 161, 170, 0.2); color: var(--text-2); }
+    .badge-pro { background: rgba(6, 182, 212, 0.2); color: var(--accent-3); }
+    .badge-enterprise { background: rgba(139, 92, 246, 0.2); color: var(--accent); }
+    .btn {
+      padding: 6px 12px;
+      background: var(--accent);
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-success { background: var(--success); }
+    .btn-danger { background: var(--error); }
+    .btn-secondary { background: var(--bg-3); }
+    select {
+      padding: 8px 12px;
+      background: var(--bg-3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .empty {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-mute);
+    }
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-mute);
+    }
+    .refresh-btn {
+      float: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Marketing Agent - Admin</h1>
+    <div class="user-info">
+      <span id="userEmail"></span>
+      <button id="signOutBtn">Cerrar sesión</button>
+    </div>
+  </div>
+  
+  <div class="grid">
+    <div class="card">
+      <h2>
+        Usuarios
+        <button class="btn btn-secondary refresh-btn" onclick="loadUsers()">↻</button>
+      </h2>
+      <div id="usersTable">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <h2>
+        Suscripciones
+        <button class="btn btn-secondary refresh-btn" onclick="loadSubscriptions()">↻</button>
+      </h2>
+      <div id="subscriptionsTable">
+        <div class="loading">Cargando...</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="card" style="margin-top: 24px">
+    <h2>API Keys de Usuario</h2>
+    <div style="margin-bottom: 16px">
+      <select id="userSelect">
+        <option value="">Seleccionar usuario...</option>
+      </select>
+    </div>
+    <div id="apiKeysSection">
+      <div class="empty">Selecciona un usuario para ver sus API Keys</div>
+    </div>
+  </div>
+  
+  <script type="module">
+    import { 
+      getCurrentUser, signOut, isSupabaseConfigured, 
+      getAllProfiles, validateUser, updateUserPlan,
+      getAllSubscriptions, getUserApiKeys, saveUserApiKey 
+    } from './assets/supabase-client.js';
+    
+    let profiles = [];
+    let subscriptions = [];
+    
+    async function init() {
+      if (!await isConfigured()) {
+        alert('Supabase no configurado. Ve a orchestrator > Settings > Nube');
+        return;
+      }
+      
+      const user = await getCurrentUser();
+      if (!user) {
+        window.location.href = 'login.html';
+        return;
+      }
+      
+      document.getElementById('userEmail').textContent = user.email;
+      await loadUsers();
+      await loadSubscriptions();
+    }
+    
+    async function isConfigured() {
+      return isSupabaseConfigured();
+    }
+    
+    async function loadUsers() {
+      const container = document.getElementById('usersTable');
+      container.innerHTML = '<div class="loading">Cargando...</div>';
+      
+      profiles = await getAllProfiles();
+      
+      if (profiles.length === 0) {
+        container.innerHTML = '<div class="empty">No hay usuarios</div>';
+        return;
+      }
+      
+      let html = '<table class="table"><thead><tr><th>Email</th><th>Rol</th><th>Estado</th><th>Plan</th><th>Creado</th><th>Acciones</th></tr></thead><tbody>';
+      
+      for (const p of profiles) {
+        const sub = subscriptions.find(s => s.user_id === p.id) || {};
+        const planBadge = `badge-${sub.plan || 'free'}`;
+        const statusBadge = p.is_active ? 'badge-active' : 'badge-pending';
+        
+        html += `<tr>
+          <td>${p.id}</td>
+          <td><span class="badge badge-${p.role}">${p.role}</span></td>
+          <td><span class="badge ${statusBadge}">${p.is_active ? 'Activo' : 'Pendiente'}</span></td>
+          <td><span class="badge ${planBadge}">${sub.plan || 'free'}</span></td>
+          <td>${new Date(p.created_at).toLocaleDateString()}</td>
+          <td>
+            ${p.role !== 'admin' ? `
+              <button class="btn btn-success" onclick="toggleUser('${p.id}', true)">✓</button>
+              <button class="btn btn-danger" onclick="toggleUser('${p.id}', false)">✗</button>
+              <select onchange="changePlan('${p.id}', this.value)" style="margin-left:8px">
+                <option value="free" ${(sub.plan || 'free') === 'free' ? 'selected' : ''}>Free</option>
+                <option value="pro" ${sub.plan === 'pro' ? 'selected' : ''}>Pro</option>
+                <option value="enterprise" ${sub.plan === 'enterprise' ? 'selected' : ''}>Enterprise</option>
+              </select>
+            ` : ''}
+          </td>
+        </tr>`;
+      }
+      
+      html += '</tbody></table>';
+      container.innerHTML = html;
+      
+      const select = document.getElementById('userSelect');
+      select.innerHTML = '<option value="">Seleccionar usuario...</option>' +
+        profiles.map(p => `<option value="${p.id}">${p.id}</option>`).join('');
+    }
+    
+    async function loadSubscriptions() {
+      const container = document.getElementById('subscriptionsTable');
+      container.innerHTML = '<div class="loading">Cargando...</div>';
+      
+      subscriptions = await getAllSubscriptions();
+      
+      if (subscriptions.length === 0) {
+        container.innerHTML = '<div class="empty">No hay suscripciones</div>';
+        return;
+      }
+      
+      let html = '<table class="table"><thead><tr><th>Usuario</th><th>Plan</th><th>Estado</th><th>Requests Hoy</th><th>Creado</th></tr></thead><tbody>';
+      
+      for (const s of subscriptions) {
+        html += `<tr>
+          <td>${s.user_id.slice(0, 8)}...</td>
+          <td><span class="badge badge-${s.plan}">${s.plan}</span></td>
+          <td><span class="badge ${s.status === 'active' ? 'badge-active' : 'badge-pending'}">${s.status}</span></td>
+          <td>${s.requests_today || 0}</td>
+          <td>${new Date(s.created_at).toLocaleDateString()}</td>
+        </tr>`;
+      }
+      
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    }
+    
+    window.toggleUser = async function(userId, active) {
+      const user = await getCurrentUser();
+      await validateUser(userId, user.id, active);
+      await loadUsers();
+      await loadSubscriptions();
+    };
+    
+    window.changePlan = async function(userId, plan) {
+      await updateUserPlan(userId, plan);
+      await loadSubscriptions();
+    };
+    
+    document.getElementById('userSelect').addEventListener('change', async e => {
+      const userId = e.target.value;
+      const container = document.getElementById('apiKeysSection');
+      
+      if (!userId) {
+        container.innerHTML = '<div class="empty">Selecciona un usuario para ver sus API Keys</div>';
+        return;
+      }
+      
+      container.innerHTML = '<div class="loading">Cargando...</div>';
+      
+      const keys = await getUserApiKeys(userId);
+      
+      if (keys.length === 0) {
+        container.innerHTML = '<div class="empty">No hay API Keys para este usuario</div>';
+        return;
+      }
+      
+      let html = '<table class="table"><thead><tr><th>Proveedor</th><th>Key</th><th>Creado</th></tr></thead><tbody>';
+      for (const k of keys) {
+        try {
+          const decrypted = atob(k.api_key_encrypted);
+          html += `<tr>
+            <td>${k.provider}</td>
+            <td>${decrypted.slice(0, 10)}...</td>
+            <td>${new Date(k.created_at).toLocaleDateString()}</td>
+          </tr>`;
+        } catch {
+          html += `<tr>
+            <td>${k.provider}</td>
+            <td>***</td>
+            <td>${new Date(k.created_at).toLocaleDateString()}</td>
+          </tr>`;
+        }
+      }
+      html += '</tbody></table>';
+      container.innerHTML = html;
+    });
+    
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      await signOut();
+      window.location.href = 'login.html';
+    });
+    
+    init();
+  </script>
+</body>
+</html>

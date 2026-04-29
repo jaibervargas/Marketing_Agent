@@ -486,6 +486,12 @@
             <button class="icon-btn" id="historyBtn" title="Historial">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
             </button>
+            <button class="icon-btn" id="userBtn" title="Usuario">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </button>
+            <button class="icon-btn" id="adminBtn" title="Admin">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.5.83a2 2 0 0 0-.33 1.82v.58h6l.5.83a2 2 0 0 1 .33 1.82V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.5-.83a2 2 0 0 0 .33-1.82V14h3"/><path d="M18 14v-3"/><path d="M15 14v-3"/></svg>
+            </button>
             <button class="icon-btn" id="settingsBtn" title="Configurar API key">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             </button>
@@ -598,6 +604,11 @@
                 Imagen
                 <span class="tab-pill">opcional</span>
             </button>
+            <button class="tab" data-tab="cloud" role="tab" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+                Nube
+                <span class="tab-pill">historial</span>
+            </button>
         </div>
 
         <div class="tab-panel active" data-panel="text">
@@ -655,6 +666,44 @@
             </div>
         </div>
 
+        <div class="tab-panel" data-panel="cloud">
+            <p>Sincroniza tu historial en la nube. <strong>Requiere cuenta</strong>.</p>
+            <div class="field">
+                <label>Project URL</label>
+                <input type="text" id="supabaseUrl" placeholder="https://xxxxx.supabase.co">
+                <div class="field-hint">Encuentra esto en Settings → API de tu proyecto Supabase</div>
+            </div>
+            <div class="field">
+                <label>Anon Key</label>
+                <input type="password" id="supabaseKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+                <div class="field-hint">Settings → API → Project API keys → anon key</div>
+            </div>
+            <div style="display:flex;gap:8px">
+                <button class="btn" id="saveSupabaseBtn" style="flex:1">Guardar</button>
+                <button class="btn btn-ghost" id="clearSupabaseBtn" style="flex:1">Borrar</button>
+            </div>
+            <div id="authSection" style="display:none">
+                <div class="field">
+                    <label>Email</label>
+                    <input type="email" id="authEmail" placeholder="tu@email.com">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <input type="password" id="authPassword" placeholder="••••••••">
+                </div>
+                <div class="field" id="authNameField" style="display:none">
+                    <label>Nombre</label>
+                    <input type="text" id="authName" placeholder="Tu nombre">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" id="signOutBtn" style="display:none">Cerrar sesión</button>
+                    <button class="btn" id="signInBtn">Iniciar sesión</button>
+                    <button class="btn btn-primary" id="signUpBtn" style="display:none">Registrarse</button>
+                </div>
+            </div>
+            <p id="cloudStatus" style="margin-top:12px;color:var(--text-mute);font-size:13px"></p>
+        </div>
+
         <div class="modal-actions">
             <button class="btn btn-ghost" id="clearKeyBtn">Borrar key</button>
             <button class="btn btn-ghost" id="cancelSettingsBtn">Cancelar</button>
@@ -663,8 +712,55 @@
     </div>
 </div>
 
+<div class="modal-bg" id="userModal">
+    <div class="modal">
+        <h3>Usuario</h3>
+        <div id="userNotLogged">
+            <p>Inicia sesión para sincronizar tu historial en la nube.</p>
+            <div class="field">
+                <label>Email</label>
+                <input type="email" id="navAuthEmail" placeholder="tu@email.com">
+            </div>
+            <div class="field">
+                <label>Password</label>
+                <input type="password" id="navAuthPassword" placeholder="••••••••">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" id="navSignInBtn">Iniciar sesión</button>
+                <button class="btn btn-primary" id="navSignUpBtn">Registrarse</button>
+            </div>
+            <p id="navAuthStatus" style="margin-top:12px;color:var(--text-mute);font-size:13px"></p>
+        </div>
+        <div id="userLogged" style="display:none">
+            <p style="margin-bottom:16px">Hola, <strong id="userEmail"></strong></p>
+            <div class="modal-actions">
+                <button class="btn btn-ghost" id="navSignOutBtn">Cerrar sesión</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script type="module">
+  import { getCurrentUser, isSupabaseConfigured, checkSubscription } from './assets/supabase-client.js';
+  
+  (async function() {
+    if (!isSupabaseConfigured()) return;
+    
+    const user = await getCurrentUser();
+    if (!user) {
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    const sub = await checkSubscription(user.id);
+    if (!sub.is_validated && sub.role !== 'admin') {
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;color:#a1a1aa;gap:16px"><h1>Esperando validación</h1><p>Un administrador debe validar tu cuenta para usar el sistema.</p><a href="login.html" style="color:#8b5cf6">Cerrar sesión</a></div>';
+      return;
+    }
+  })();
+</script>
 <script type="module" src="./assets/app-orchestrator.js"></script>
 </body>
 </html>
